@@ -1,0 +1,76 @@
+"visualization_solutions"
+(I should read ch.23 and learn about R markdown before typing up the hw..."boss's question" is at line 68)
+---
+1. ggplot(data = mpg)
+  blank background
+2. 234row*11col
+3. f = front-wheel drive, r = rear wheel drive, 4 = 4wd
+4. > ggplot(data =mpg) +
++     geom_point(mapping = aes(x =cyl, y = hwy))
+5. > ggplot(data =mpg) +
++     geom_point(mapping = aes(x = class, y = drv));
+   because both are categorical.
+---
+1. because "blue" has been interpreted as a variable like "drv"; it should be placed outside of aes().
+2. categorical: manufacturer, model, year, trans, drv, fl, class; continuous: displ, cyl, cty, hwy.
+3. > ggplot(data =mpg) +
++     geom_point(mapping = aes(x = displ, y = hwy, color = class));
+  color and shape is not continuous, while size is.
+4. no issue, both aesthetics apply.
+5. the width of the border; circle
+6. it colors according to TRUE and FALSE.
+---
+1. one column for each variables.
+2. empty cells mean no variable has that combination of those values(drv and cyl).
+3. . is a placeholder so that the resulted facet is one-dimension.
+4. otherwise there will be so many colors and thus hard to read. Facet is a bit harder to compare.
+5. restrict the number of rows to have. for grid the number of rows and columns are defined by the variable.
+6. cuz screens usually have bigger width than height.
+---
+1. geom_line, geom_boxplot, geom_histogram, geom_area.
+2. NA
+3. don't show legend.
+4. show the confidence interval or not.
+5. no, they can be put in either ggplot() or geom().
+6. <ggplot(data = mpg, mapping = aes(x = displ, y = hwy, group=drv))  +
+  + geom_point() + geom_smooth(se = FALSE)
+  + geom_smooth(se = FALSE) + geom_point()
+  <ggplot(data = mpg, mapping = aes(x = displ, y = hwy))  +
+  + geom_point(aes(colour = drv)) + geom_smooth(aes(colour = drv), se=FALSE)
+ <ggplot(data = mpg, mapping = aes(x = displ, y = hwy))  +
+  + geom_point(aes(colour = drv)) + geom_smooth(se=FALSE)
+ <ggplot(data = mpg, mapping = aes(x = displ, y = hwy))  +
+  + geom_point(aes(colour = drv)) + geom_smooth(aes(linetype=drv), se=FALSE)
+ <ggplot(data = mpg, mapping = aes(x = displ, y = hwy))  +
+  + geom_point(size = 4, colour = "white") + geom_point(aes(colour = drv))
+---
+1. geom_pointrange()
+2. ggplot(data = diamonds) +
+  geom_pointrange(
+    mapping = aes(x = cut, y = depth),
+    stat = "summary",
+    fun.ymin = min,
+    fun.ymax = max,
+    fun.y = median)
+3. default stat of col is "stat_identity()": the direct x/y values, the default stat of bar is "stat_bin()": the counts of x/y.
+4. y value, lower value of the confidence interval, higher value of the confidence interval, standard error
+5. the height of bars all equal to 1
+---
+1. some points overlay on each other; use "jitter".
+>ggplot(data = mpg, mapping = aes(x = cty, y = hwy)) +
+ +  geom_point(position = "jitter")
+2. "width" and "height"
+3. geom_jitter() adds random variation to the locations points of the graph; 
+   geom_count() sizes the points relative to the number of observations.
+4. dodge2
+> ggplot(data = mpg, aes(x = drv, y = hwy, colour = class)) +
++     geom_boxplot()
+BOSS QUESTION HERE: WHICH TYPE OF CARS HAVE THE HIGHEST HIGHWAY MILEAGE PER GALLON?
+---
+1. >  bar <- ggplot(data = diamonds) +
++     geom_bar(mapping = aes(x = clarity, fill = clarity)) +
++     theme(aspect.ratio = 1) + labs(x = NULL, y = NULL)
+> bar + coord_polar()
+2. it adds axis titles, plot titles, and a caption to the plot.
+3. coord_quickmap() is an approximate but faster map projection.
+4. it ensures that the line produced by geom_abline() is 45 degree; easier to compare and see if hwy is higher than cty.
