@@ -1,6 +1,8 @@
 ---
 title: "HW0914_He Jiang"
-output: html_document
+output: 
+  html_document: 
+    keep_md: yes
 ---
 
 ```{r setup, include=FALSE}
@@ -11,9 +13,9 @@ library(nycflights13)
 
 #Workflow: Basics
 ###1.
-```{r}
+```{r, eval=FALSE}
 my_variable <- 10
-my_var??able
+#my_var??able
 ```
 Because the object called("my_var??able") is different from the object assigned("my_variable") with the value.
 ###2.
@@ -38,7 +40,7 @@ change "diamond" to "diamonds"
 ###1
 ```{r}
 flights
-?flights
+#?flights
 ```
 
 ```{r}
@@ -166,7 +168,7 @@ transmute(flights, sched_dep_time, dep_time, dep_delay, delay = dep_time %/% 100
 ```
 ###4
 *interesting*
-```{r}
+```{r, eval = FALSE}
 df <- (flights, (desc(dep_delay))
  min_rank(df$dep_delay)
 ```
