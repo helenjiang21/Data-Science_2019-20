@@ -46,5 +46,14 @@ Go to setting -> output option.. -> advanced -> keep markdown source files
 Commit changes in Github desktop, push to origin.
 Now md file on Github is readable.
 ("Commit" saves the file to local, "Push" saves the file online)
+
+#import packages into R
+readr, lubridate
+vignette (short description of packages)
+```{r}
+data =read.csv("Fraud_Data.csv")
+```
+
+
 #final project
 nyc open data, kaggle
