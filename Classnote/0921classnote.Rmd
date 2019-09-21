@@ -1,0 +1,42 @@
+---
+title: "0921classnote"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(nycflights13)
+library(dplyr)
+```
+
+#HW
+mutate, ex.4
+```{r}
+df <- tibble(c1 = letters [1:3], c2 = c(30, 45, 40))
+min_rank(df$c2)
+```
+
+```{r}
+flights_delayed <- mutate(flights, dep_delay_min_rank = min_rank(desc(dep_delay)))
+flights_delayed1 <- filter(flights_delayed, dep_delay_min_rank <= 10)
+arrange(flights_delayed1, dep_delay_min_rank)
+```
+
+group, ex.7
+```{r}
+num_delay <- flights %>%
+    group_by(tailnum) %>%
+    arrange(time_hour) %>%
+    mutate(yes = cumall(dep_delay < 60)) %>%
+    filter(yes == TRUE) %>%
+  tally(sort = TRUE) 
+num_delay
+ggplot(num_delay)+
+  geom_histogram(mapping = aes(x = n), boundary = 0)
+```
+
+understand what to code
+
+#final project
+nyc open data, kaggle

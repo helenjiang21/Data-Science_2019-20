@@ -1,0 +1,28 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(ggplot2)
+ggplot(mtcars, aes(x = cyl, y = mpg, color = as.factor(am))) +
+  geom_point(show.legend = F)+
+  geom_smooth(show.legend = F, se = F)
+```
+
+###how to store previous calculated results: cached
+
+`
+    rawdata <- readr::read_csv("a_very_large_file.csv")
+`
+`{r processed_data, cached = TRUE}
+    processed_data <- rawdata %>%
+      filter(!is.na(import_var)) %>%
+      mutate(new_variable = complicated_transformation(x, y, z))
+`
+---
+#API
+---
+For final project: shinny app + report
+  shinny: use browser to check error; remove browser + hit stop in console before run app.
+---
