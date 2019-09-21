@@ -1,6 +1,8 @@
 ---
 title: "0921classnote"
-output: html_document
+output: 
+  html_document: 
+    keep_md: yes
 ---
 
 ```{r setup, include=FALSE}
@@ -38,5 +40,11 @@ ggplot(num_delay)+
 
 understand what to code
 
+#Github
+Change to html_document,
+Go to setting -> output option.. -> advanced -> keep markdown source files
+Commit changes in Github desktop, push to origin.
+Now md file on Github is readable.
+("Commit" saves the file to local, "Push" saves the file online)
 #final project
 nyc open data, kaggle
