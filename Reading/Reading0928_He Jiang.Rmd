@@ -1,0 +1,113 @@
+---
+title: "Reading0928"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Exploratory Data Analysis
+EDA: Question --> answers --> new question
+visualization, transformation, and modeling
+variable, value, observation/case, tabular data
+##Visualization
+Histogram
+```{r}
+ggplot(data = diamonds) +
+      geom_histogram(mapping = aes(x = carat), binwidth = 0.5)
+diamonds %>%
+  count(cut_width(carat, 0.5))
+```
+Multiply histgram: 
+```{r}
+smaller <- diamonds %>%
+  filter(carat < 3)
+ggplot(data = smaller, mapping = aes(x = carat, color = cut)) +
+      geom_freqpoly(binwidth = 0.1)
+```
+Use coord_cartesian to zoom in and find outlier
+```{r}
+ ggplot(diamonds) +
+      geom_histogram(mapping = aes(x = y), binwidth = 0.5) +
+      coord_cartesian(ylim = c(0, 50))
+```
+##Missing values
+ifelse(logical statement, TRUE, FALSE)
+```{r}
+diamonds2 <- diamonds %>%
+  mutate(y = ifelse(y < 3 | y > 20, NA, y))
+ggplot(data = diamonds2, mapping = aes(x = x, y = y)) +
+  geom_point(na.rm = TRUE)
+```
+mean() can only deal with vector/number list, not tibble.
+##Covariation
+variation within a variable
+```{r}
+ggplot(data = diamonds, mapping = aes(x = price, y = ..density..) )+
+  geom_freqpoly(mapping = aes(color = cut), binwidth = 500)
+```
+easier to compare using boxplot, one axis is the categories while  the other axis is values
+```{r}
+ggplot(diamonds, aes(x = cut, y = price)) +
+  geom_boxplot()
+```
+
+```{r}
+ggplot(data = mpg) +
+  geom_boxplot(mapping = aes(x = reorder(class, hwy), y=hwy)) +
+  coord_flip()
+```
+##Two Categorical Variables
+```{r}
+ggplot(data = diamonds) +
+      geom_count(mapping = aes(x = cut, y = color))
+```
+
+```{r}
+diamonds %>%
+      count(color, cut) %>%
+      ggplot(aes(x = color, y = cut)) +
+        geom_tile(aes(fill = n))
+```
+factor() change vector to factor (numerical values to categories)
+##Two Continuous Variables
+```{r}
+ ggplot(data = diamonds) +
+      geom_point(
+        mapping = aes(x = carat, y = price), alpha=1/100)
+```
+or bin the variable
+```{r}
+ggplot(data = smaller, mapping = aes(x = carat, y = price)) +
+      geom_boxplot(mapping = aes(group = cut_width(carat, 0.1)))
+```
+or display same number of points in each bin
+```{r}
+ ggplot(data = smaller, mapping = aes(x = carat, y = price)) +
+      geom_boxplot(mapping = aes(group = cut_number(carat, 20)))
+```
+or use hexbin
+```{r}
+ ggplot(data = smaller) +
+      geom_bin2d(mapping = aes(x = carat, y = price))
+ ggplot(data = smaller) +
+      geom_hex(mapping = aes(x = carat, y = price))
+```
+
+##Models and Pattern
+```{r}
+mod <- lm(log(price) ~ log(carat), data = diamonds)
+    diamonds2 <- diamonds %>%
+      add_residuals(mod) %>%
+      mutate(resid = exp(resid))
+ggplot(data = diamonds2) +
+  geom_point(mapping = aes(x = carat, y = resid))
+ggplot(data = diamonds2) +
+      geom_boxplot(mapping = aes(x = cut, y = resid))
+```
+##ggplot2 Calls
+Omit data = & mapping =
