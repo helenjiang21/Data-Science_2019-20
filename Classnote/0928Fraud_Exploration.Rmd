@@ -5,17 +5,6 @@ output:
     toc: TRUE
     toc_float: TRUE
 ---
-###gganimate
-<<- assign a value to a variable&pass it to outside of the function
-ggg() read the value of function ggg.
-define function inside the server environment.
-```{r}
-Fraud_Data <- read_csv("~/Downloads/Fraud/Fraud_Data.csv")
-ggplot(Fraud_Data, aes(x = browser)) +
-  geom_bar()
-ggplot(Fraud_Data, aes(x = age, y = purchase_value, color = sex)) +
-  geom_point(alpha = 1/10)
-```
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
