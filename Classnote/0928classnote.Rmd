@@ -1,0 +1,67 @@
+---
+title: "0928classnote"
+output: 
+  html_document:
+    toc: TRUE
+    toc_float: TRUE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggplot2)
+library(readr)
+```
+
+```{r}
+Fraud_Data <- read_csv("Fraud/Fraud_Data.csv")
+```
+
+##Data exploration
+###General exploration
+Types of variables?
+```{r}
+names(Fraud_Data)
+```
+number of rows?
+```{r}
+nrow(Fraud_Data)
+```
+###How many Frauds?
+```{r}
+group_by(Fraud_Data, class) %>%
+  count()
+```
+###Browser
+Which browser has the most frauds?
+```{r}
+brow <- group_by(Fraud_Data, browser, class) %>%
+  count() %>%
+  ungroup() %>%
+  mutate(class = as.factor(class))
+brow
+```
+```{r}
+ggplot(brow) +
+  geom_bar(stat = "identity", aes(x = browser, y = n, fill = class))
+```
+
+```{r}
+ggplot(brow) +
+  geom_bar(stat = "identity", aes(x = browser, y = n, fill = class), position = "dodge")
+```
+This graph shows that Chrome has the most transactions (and frauds) than other browser.
+
+Which browser has the biggest proportion of frauds?
+table or graph
+```{r}
+ggplot(brow) +
+  geom_bar(stat = "identity", aes(x = browser, y = n, fill = class), position = "fill") 
+```
+
+```{r}
+ggplot(brow) +
+  geom_bar(stat = "identity", aes(x = browser, y = n, fill = class), position = "fill")  +
+  coord_cartesian(ylim = c(0, 0.12))
+```
+
