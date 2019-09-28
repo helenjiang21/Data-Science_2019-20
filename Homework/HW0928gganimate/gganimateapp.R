@@ -1,5 +1,8 @@
 library(shiny)
 library(tidyverse)
+library(ggplot2)
+library(gganimate)
+
 # Define UI for application that draws a histogram
 ui <- fluidPage(
   
@@ -15,7 +18,7 @@ ui <- fluidPage(
     
     # Show a plot of the generated distribution
     mainPanel(
-      plotOutput("mpgPlot")
+      imageOutput("mpgPlot")
     )
   )
 )
@@ -25,17 +28,15 @@ server <- function(input, output) {
   
   output$mpgPlot <- renderImage({
     # generate bins based on input$bins from ui.R
-    library(ggplot2)
-    library(gganimate)
     anim <- ggplot(mpg, aes_string(x = "displ", y = input$dropdown1)) +
       geom_point(aes(color =  class, group = 1L)) +
       transition_states(class, transition_length = 1, state_length = 1) +
       ease_aes("cubic-in-out") +
       ggtitle("Now showing {closest_state}")
     anim_save("mpg.gif", animate(anim))
-    list(src = "outfile.gif",
-         contentType = 'image/gif'
-    )})}
+    list(src = "mpg.gif",
+         contentType = 'image/gif')
+    })}
 
 # Run the application 
 shinyApp(ui = ui, server = server)
