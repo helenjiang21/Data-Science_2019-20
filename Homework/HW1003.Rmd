@@ -1,0 +1,90 @@
+---
+title: "Fraud_data_exploration"
+output: html_document:
+  toc: TRUE
+  toc_float: TRUE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggplot2)
+library(readr)
+```
+
+#Fraud Data Exploration
+Import data:
+```{r}
+Fraud <- read_csv("Fraud/Fraud_Data.csv")
+```
+
+##General Info
+Types of variables?
+```{r}
+names(Fraud)
+```
+Number of observation?
+```{r}
+nrow(Fraud)
+```
+How many frauds in total?
+```{r}
+group_by(Fraud, class) %>%
+  count()
+```
+##Browsers
+What types of browser?
+```{r}
+Browser <- select(Fraud, browser)
+unique(Browser)
+```
+###Which browser has the most fraud?
+Table:
+```{r}
+brow <- group_by(Fraud, browser, class) %>%
+  count()%>%
+  ungroup() %>%
+  mutate(class = as.factor(class))
+brow
+```
+Graphs:
+```{r}
+ggplot(brow) +
+  geom_bar(stat = "identity", aes(x = reorder(browser, -n), y = n, fill = class), position = "dodge")
+```
+###Which browser has the highest percentage of frauds?
+```{r}
+ggplot(brow) +
+  geom_bar(stat = "identity", aes(x = reorder(browser, n), y = n, fill = class), position = "fill")
+```
+
+```{r}
+ggplot(brow) +
+  geom_bar(stat = "identity", aes(x = reorder(browser, n), y = n, fill = class), position = "fill") +
+  coord_cartesian(ylim = c(0, 0.15))
+```
+So we can see that Chrome has the highest.
+##Age and Sex
+###General:
+Age:
+```{r}
+age <- select(Fraud, age)
+summary(age)
+```
+Visualization
+```{r}
+ggplot(Fraud) +
+  geom_histogram(aes(x = age, binwidth = 1))
+```
+Sex: 
+```{r}
+sex <- select(Fraud, sex)
+group_by(Fraud, sex) %>%
+  count()
+```
+Visualization
+```{r}
+ggplot(Fraud) +
+  geom_bar(stat = "identity", aes(x = sex, y = n))
+```
+
