@@ -35,7 +35,6 @@ for rows
 arrange(flights, year, month, day)
 arrange(flights, desc(arr_delay))
 arrange(flights, year, month, day, arr_delay)
-?arrange
 ```
 
 ```{r}

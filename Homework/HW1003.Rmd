@@ -68,8 +68,8 @@ So we can see that Chrome has the highest.
 ###General:
 Age:
 ```{r}
-age <- select(Fraud, age)
-summary(age)
+Age <- select(Fraud, age)
+summary(Age)
 ```
 Visualization
 ```{r}
@@ -78,13 +78,107 @@ ggplot(Fraud) +
 ```
 Sex: 
 ```{r}
-sex <- select(Fraud, sex)
+Sex <- select(Fraud, sex)
 group_by(Fraud, sex) %>%
   count()
 ```
 Visualization
 ```{r}
 ggplot(Fraud) +
-  geom_bar(stat = "identity", aes(x = sex, y = n))
+  geom_bar(aes(x = sex))
+```
+###Relation between Age and sex
+```{r}
+AgeSex <- select(Fraud, sex, age, class)
+Maleage <- filter(AgeSex, sex == "M") %>%
+  summary(age)
+Femaleage <- filter(AgeSex, sex =="F") %>%
+  summary(age)
+Maleage
+Femaleage
+```
+Female has a lower mean, but the maximum is hight. Females experience 9.1% fraud, while males experience 9.6%.
+
+Visualization
+```{r}
+ggplot(Fraud) +
+  geom_boxplot(aes(x = sex, y = age))
+```
+###Frauds distribution within sex & age groups
+This shows the amount of frauds in each sex group.
+```{r}
+agesex <- group_by(Fraud, sex, age, class) %>%
+  count()%>%
+  ungroup() %>%
+  mutate(class = as.factor(class))
+ggplot(agesex) +
+  geom_bar(stat = "identity", aes(x = sex, y = n, fill = class), position = "dodge")
+```
+these graphs show the proportion of frauds in each sex group. Males have relatively more frauds.
+```{r}
+ggplot(agesex) +
+  geom_bar(stat = "identity", aes(x = sex, y = n, fill = class), position = "fill")
 ```
 
+```{r}
+ggplot(agesex) +
+  geom_bar(stat = "identity", aes(x = sex, y = n, fill = class), position = "fill") +
+  coord_cartesian(ylim = c(0, 0.13))
+```
+This shows the number of frauds in each age group. 
+```{r}
+ggplot(agesex) +
+  geom_bar(stat = "identity", aes(x = age, y = n, fill = class), position = "dodge") 
+```
+
+```{r}
+ggplot(agesex) +
+  geom_bar(stat = "identity", aes(x = age, y = n, fill = class), position = "fill") 
+```
+One age group has relatively high proportion. Which is..
+```{r}
+agefrauds <-group_by(Fraud, age, class) %>%
+  count()%>%
+  ungroup() %>%
+  mutate(class = as.factor(class)) %>%
+  filter(class == 1)
+arrange(agefrauds, desc(n))
+```
+36.
+if we just want to find which sex-age group has the highest frauds: 
+```{r}
+frauds <- filter(agesex, class == 1)
+arrange(frauds, desc(n))
+```
+male, 32
+##Purchase value
+###General
+quick summary
+```{r}
+val <- group_by(Fraud, purchase_value, class) %>%
+  count()%>%
+  ungroup() %>%
+  mutate(class = as.factor(class))
+summary(val)
+```
+
+```{r}
+ggplot(Fraud) +
+  geom_histogram(aes(x = purchase_value))
+```
+###Purchase value and frauds?
+```{r}
+ggplot(val) +
+  geom_bar(stat = "identity", aes(x = purchase_value, y = n, fill = class), position = "dodge")
+```
+```{r}
+ggplot(val) +
+  geom_bar(stat = "identity", aes(x = purchase_value, y = n, fill = class), position = "fill")
+```
+
+```{r}
+fraudss <- filter(val, class == 1)
+arrange(fraudss, desc(n))
+```
+When the purchase value is 32 most frauds occur
+##ip adress
