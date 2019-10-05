@@ -34,13 +34,13 @@ How many frauds in total?
 group_by(Fraud, class) %>%
   count()
 ```
-##Browsers
+## Browsers
 What types of browser?
 ```{r}
 Browser <- select(Fraud, browser)
 unique(Browser)
 ```
-###Which browser has the most fraud?
+### Which browser has the most fraud? 
 Table:
 ```{r}
 brow <- group_by(Fraud, browser, class) %>%
@@ -54,7 +54,8 @@ Graphs:
 ggplot(brow) +
   geom_bar(stat = "identity", aes(x = reorder(browser, -n), y = n, fill = class), position = "dodge")
 ```
-###Which browser has the highest percentage of frauds?
+### Which browser has the highest percentage of frauds? 
+
 ```{r}
 ggplot(brow) +
   geom_bar(stat = "identity", aes(x = reorder(browser, n), y = n, fill = class), position = "fill")
@@ -66,8 +67,10 @@ ggplot(brow) +
   coord_cartesian(ylim = c(0, 0.15))
 ```
 So we can see that Chrome has the highest.
-##Age and Sex
-###General:
+
+## Age and Sex 
+
+### General: 
 Age:
 ```{r}
 Age <- select(Fraud, age)
@@ -89,7 +92,9 @@ Visualization
 ggplot(Fraud) +
   geom_bar(aes(x = sex))
 ```
-###Relation between Age and sex
+
+### Relation between Age and sex 
+
 ```{r}
 AgeSex <- select(Fraud, sex, age, class)
 Maleage <- filter(AgeSex, sex == "M") %>%
@@ -106,7 +111,8 @@ Visualization
 ggplot(Fraud) +
   geom_boxplot(aes(x = sex, y = age))
 ```
-###Frauds distribution within sex & age groups
+
+### Frauds distribution within sex & age groups 
 This shows the amount of frauds in each sex group.
 ```{r}
 agesex <- group_by(Fraud, sex, age, class) %>%
@@ -153,8 +159,10 @@ frauds <- filter(agesex, class == 1)
 arrange(frauds, desc(n))
 ```
 male, 32
-##Purchase value
-###General
+
+## Purchase value 
+
+### General 
 quick summary
 ```{r}
 val <- group_by(Fraud, purchase_value, class) %>%
@@ -168,7 +176,9 @@ summary(val)
 ggplot(Fraud) +
   geom_histogram(aes(x = purchase_value))
 ```
-###Purchase value and frauds?
+
+### Purchase value and frauds? 
+
 ```{r}
 ggplot(val) +
   geom_bar(stat = "identity", aes(x = purchase_value, y = n, fill = class), position = "dodge")
