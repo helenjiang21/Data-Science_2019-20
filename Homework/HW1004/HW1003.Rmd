@@ -1,8 +1,10 @@
 ---
 title: "Fraud_data_exploration"
-output: html_document:
-  toc: TRUE
-  toc_float: TRUE
+output: 
+  html_document:
+    keep_md: TRUE
+    toc: TRUE
+    toc_float: TRUE
 ---
 
 ```{r setup, include=FALSE}
@@ -12,13 +14,13 @@ library(ggplot2)
 library(readr)
 ```
 
-#Fraud Data Exploration
+# Fraud Data Exploration
 Import data:
 ```{r}
 Fraud <- read_csv("Fraud/Fraud_Data.csv")
 ```
 
-##General Info
+## General Info
 Types of variables?
 ```{r}
 names(Fraud)
@@ -181,4 +183,3 @@ fraudss <- filter(val, class == 1)
 arrange(fraudss, desc(n))
 ```
 When the purchase value is 32 most frauds occur
-##ip adress
