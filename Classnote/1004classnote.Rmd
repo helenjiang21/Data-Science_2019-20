@@ -1,0 +1,45 @@
+---
+title: "1004classnote"
+output: 
+  html_document: 
+    keep_md: yes
+    toc: yes
+    toc_float: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse, readr, IPtoCountry)
+```
+
+# Shiny
+plotly() package (interactive ggplot), tabs() package.
+
+# quiz 
+git push: push the content to remote depository
+
+# Fraud 
+There is 'r nrow(df)'
+range()
+
+# Knit
+ylam: problem in the --- title --- part
+
+# ggplot readability
+ggtitle
+gridExtra
+
+# Can you trust the data
+internet age
+
+# ip to country
+IPtoCountry
+```{r}
+Fraud_data <- read_csv("Fraud/Fraud_Data.csv")
+ip_data <- read.csv("Fraud/IpAddress_to_Country.csv")
+```
+
+```{r}
+mutate(Fraud_data, Country = IP_lookup(ip_address))
+```
+

@@ -1,0 +1,28 @@
+---
+title: "Test1012"
+output: 
+  html_document:
+    keep_md: TRUE
+    toc: TRUE
+    toc_float: TRUE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(readr)
+```
+
+# Employee Retention Exploration
+Here we're trying to find which factors determine the retention time of employees. Why? Because of all the efforts and money a company need to put in for finding a new employee. If we can find such determining factors, companies could formulate measures (such as raising the salary) in response.
+
+## General info. about the dataset
+First let's import the data
+```{r}
+Employee <- read_csv("GitHub/DS_CLASS_2019-20_Helen/Test/employee.csv")
+```
+It has variables: `r names(Employee)`
+```{r}
+names(Employee)
+```
+
