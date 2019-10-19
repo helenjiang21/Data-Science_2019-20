@@ -1,0 +1,44 @@
+---
+title: "1019classnote"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(readr)
+library(IPtoCountry)
+```
+
+## R Markdown
+
+to convert data type: `mutate_each()`, `mutate_all()`, `convert()`
+
+##Quiz
+
+###1
+gather grade
+
+```{r}
+tA <- tibble(let = c("A", "B", "C", "E", "G"), Val1 = c(3, 5, NA, 17,3))
+tB <- tibble(let = c( "B", "C", "K"), Val2 = c(7, 3, 4))
+inner_join(tA, tB, by = "let")
+left_join(tA, tB, by = "let")
+full_join(tA, tB, by = "let")
+anti_join(tA, tB, by = "let")
+```
+
+##fr loop
+```{r}
+data <- read_csv("Fraud/Fraud_Data.csv")
+data2 <- data[1:100]
+IP <- read_csv("Fraud/IpAddress_to_Country.csv")
+iptoc <- function(IP)
+  for(a in 1:nrow(data2)){
+    
+  }
+```
+tic <- Sys.time()
+  sth..
+toc <- Sys.time()
+time = tic - toc

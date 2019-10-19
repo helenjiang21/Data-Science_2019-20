@@ -152,12 +152,18 @@ Because you can choose how to divide a column, but when uniting you can only cho
 
 ##Missing Values
 
+```{r}
+stocks <- tibble(
+year =c(2015,2015,2015,2015,2016,2016,2016), qtr =c( 1, 2, 3, 4, 2, 3, 4), return=c(1.88,0.59,0.35, NA,0.92,0.17,2.66)
+)
+```
+
 ###Q1
 ```{r}
 stocks %>%
   spread(year, return, fill = "N")
 stocks %>%
-  complete(year, fill = list("N","A"))
+  complete(year, qtr, fill = list(return = "N"))
 ```
 it can fill a list in the complete()
 
@@ -393,3 +399,11 @@ filter(flights, is.na(tailnum))
 ```
 
 ###Q2
+```{r}
+flights %>%
+  inner_join(weather) %>%
+  group_by(precip) %>%
+  summarise(delay = mean(dep_delay, na.rm = TRUE)) %>%
+  ggplot(aes(x = precip, y = delay)) +
+  geom_line() + geom_point()
+```
