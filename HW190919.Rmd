@@ -1,0 +1,395 @@
+---
+title: "HW191019"
+output: 
+  html_document:
+    keep_md: TRUE
+    toc: TRUE
+    toc_float: TRUE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(nycflights13)
+library(babynames)
+library(nasaweather)
+library(fueleconomy)
+```
+
+#Chapter 9. Tidy data with tidyr
+
+##Tidy data
+
+###Q1
+Each variable should be put in a seperate volumn, and observations are arranged in rows.
+
+###Q2
+table2: 
+```{r}
+cases <- table2 %>%
+  group_by(country, year) %>%
+  filter(type == "cases") %>%
+  rename(cases = count)
+population <- table2 %>%
+  group_by(country, year) %>%
+  filter(type == "population") %>%
+  rename(population = count)
+table2.1 <- tibble(country = cases$ country, year = cases$year, cases = cases$cases, population = population$population) %>%
+  mutate(rate = cases / population * 10000)
+table2.1
+```
+table4a & 4b:
+```{r}
+table4.1 <- tibble(country = table4a$country, "1999rate" = table4a[['1999']] / table4b[['1999']] * 10000, "2000rate" = table4a[['2000']] / table4b[['2000']] * 10000)
+table4.1
+```
+The table4a and 4b one is slightly easier, since we don't need to generate a new tibble to store the data.
+
+###Q3
+```{r}
+table2 %>%
+  filter(type == "cases") %>%
+  ggplot(aes(year, count)) +
+  geom_point(aes(color = country)) +
+  geom_line(aes(group = country, color = "grey50"))
+```
+We need to find out the values of cases first.
+
+##Gathering and spreading
+
+###Q1
+```{r}
+stocks <- tibble(
+year =c(2015,2015,2016,2016), half=c(1, 2, 1, 2), return = c(1.88, 0.59, 0.92, 0.17)
+)
+stocks
+```
+```{r}
+stocks1 <- spread(stocks, key = half, value = return)
+stocks1
+```
+```{r}
+stocks1 %>%
+  gather(key = "half", value = "return",  '1', '2')
+```
+The data type of the column is lost (half change from dbl to chr)
+```{r}
+stocks %>%
+  spread(key = "half", value = "return") %>%
+  gather('1', '2', key = "half", value = "return", convert = TRUE)
+```
+Convert turns the half to integers. Convert guesses the data type.
+
+###Q2
+You need to add "" around the 1999 and 2000 so that they can be interpreted as names.
+
+###Q3
+```{r}
+people <- tribble(
+  ~name, ~key, ~value,
+  #-----------------|--------|------
+  "Phillip Woods", "age", 45,
+  "Phillip Woods", "height", 186,
+  "Phillip Woods", "age", 50,
+  "Jessica Cordero", "age", 37,
+  "Jessica Cordero", "height", 156
+)
+```
+spread(people, key, value)
+There are two values corresponding to Phillip Woods' age.
+```{r}
+people1 <- people %>%
+  group_by(name, key) %>%
+  mutate(obs = row_number())
+people1
+spread(people1, key, value)
+```
+
+###Q4
+```{r}
+preg <- tribble(
+~pregnant, ~male, ~female, "yes", NA, 10, "no", 20, 12
+)
+preg
+```
+
+```{r}
+preg1 <- preg %>%
+  gather(male, female, key = "sex", value ="count")
+preg1
+```
+
+##Separate and unite
+
+###Q1
+```{r}
+tibble(x = c("a,b,c", "d,e,f,g", "h,i,j")) %>%
+    separate(x, c("one", "two", "three"), extra = "merge")
+```
+Extra: default is dropping the extra piece and giving a warning
+= "drop": simply drop the values
+= "merge": put the extras into the last column.
+
+```{r}
+tibble(x = c("a,b,c", "d,e", "f,g,i")) %>%
+    separate(x, c("one", "two", "three"), fill = "left")
+```
+Fill: when there is not enought pieces
+default is give a warning and fill from the right with NA.
+= "right": fill from the right
+= "left": fill from the left
+
+###Q2
+```{r}
+table5 %>%
+    unite(Year, century, year, sep = "", remove = F)
+```
+"remove" removes the input values from the table. When you want to keep the old variables you can set it to FALSE.
+
+###Q3
+separate() split a column by identifying the separator, while extract() split a column by identifying the entry as following a general form with some groups within.
+Because you can choose how to divide a column, but when uniting you can only choose the type of sepearator to put between.
+
+##Missing Values
+
+###Q1
+```{r}
+stocks %>%
+  spread(year, return, fill = "N")
+stocks %>%
+  complete(year, fill = list("N","A"))
+```
+it can fill a list in the complete()
+
+###Q2
+```{r}
+stocks %>%
+  fill(return, .direction = "up")
+```
+It specify whether to fill NA with the previous or next value.
+
+##WHO Case Study
+
+###Q1
+```{r}
+who %>%
+  filter(new_sp_m014 == 0) %>%
+  nrow()
+```
+There is 0 cases. So missing value (NA) probably doesn't mean 0 case occurs for that category; it means WHO don't have the data. Thus it's reasonable to ignore it.
+
+###2
+```{r}
+who
+who1 <- who %>%
+  gather(new_sp_m014:newrel_f65, key = "key", value = "cases",
+na.rm = TRUE) %>%
+  separate(key, c("new", "type", "sexage"), sep = "_") %>%
+  select(-new) %>%
+  separate("sexage", c("sex", "age"), sep = 1)
+who1
+```
+It gives out a warning, because it cannot sort out new_rel using that separate method.
+
+###Q3
+```{r}
+select(who1, country, iso2, iso3) %>%
+  distinct() %>%
+  group_by(country) %>%
+  filter(n() > 1)
+```
+There is no distinct combination of iso2 and iso3 for each country, so iso2 and iso3 are indeed only abbr.
+
+###Q4
+```{r}
+who2 <- who1 %>%
+  group_by(country, year, sex) %>%
+  summarise(cases = sum(cases)) %>%
+  unite(countrysex, country, sex, remove = F) %>%
+  filter(year > 1995) 
+```
+
+```{r}
+ggplot(who2, aes(x = year, y = cases, group = countrysex, colour = sex)) +
+  geom_line()
+```
+
+#Chapter 10 Relational Data with dplyr
+
+##nycflights13
+
+###Q1
+flights and airports; flights give you the flights of plane and its departing and arriving airports, while airports gives the longitude and latitude of those airports. origin&dest in flights and faa&lat&lon in airports.
+
+###Q2
+origin in weather --> faa in airports
+
+###Q3
+origin in weather --> dest in flights, both share time.
+
+###Q4
+```{r}
+holidays <- tribble(
+  ~name, ~year, ~month, ~day,
+  "New year", 2013, 01, 01, 
+  "July 4th", 2013, 07, 04, 
+  "Thanksgiving", 2013, 11, 29,
+  "Chrismas", 2013, 12, 25
+)
+```
+Date and name. Date can be used to map to existing tables.
+
+##Keys
+
+###Q1
+```{r}
+flights1 <- flights %>%
+  arrange(year, month, day, sched_dep_time, flight) %>%
+  mutate(id = row_number())
+flights1 %>%
+  distinct() %>%
+  group_by(id) %>%
+  filter(n() > 1)
+```
+
+###Q2
+a. playerID, teamID, yearID, and stint
+```{r}
+Batting <- Lahman::Batting
+```
+
+```{r}
+Batting %>% 
+  distinct() %>%
+  group_by(playerID, teamID, yearID, stint) %>%
+  filter(n() > 1)
+```
+
+b. year, name, sex
+```{r}
+names <- babynames::babynames
+```
+
+```{r}
+names %>%
+  group_by(year, name, sex) %>%
+  count() %>%
+  filter(n > 1) %>%
+  nrow()
+```
+
+c. lat, long, year, month
+```{r}
+atmos <- nasaweather::atmos
+atmos %>%
+  group_by(lat, long, year, month) %>%
+  count() %>%
+  filter(n > 1) %>%
+  nrow()
+```
+
+d. the number of distinct combinations is smaller than the total number of rows.
+```{r}
+ggplot2::diamonds %>%
+  distinct() %>%
+  nrow()
+nrow(ggplot2::diamonds)
+```
+
+###Q3
+Batting -- Master: PlayerID. Batting -- Salaries: PlayerID, yearID, teamID, igID; add Salaries to Batting; 
+```{r}
+Master <- Lahman::Master
+Salaries <- Lahman::Salaries
+```
+All of the Batting, Fielding, and Pitching have PlayerID, yearID, and stint.
+
+##Mutating Joins
+```{r setup, include=FALSE}
+flights2 <- flights %>%
+  select(year:day, hour, origin, dest, tailnum, carrier)
+flights2
+```
+
+###Q1
+```{r}
+delay <- flights %>%
+  group_by(dest) %>%
+  summarise(depdelay = mean(dep_delay, na.rm = TRUE)) %>%
+  inner_join(airports, by = c(dest = "faa")) %>%
+  select(dest, depdelay, lon, lat) %>%
+  ggplot(aes(lon, lat)) +
+    geom_point(aes(color = depdelay)) +
+    borders("state") +
+    coord_quickmap()
+delay
+```
+
+###Q2
+```{r}
+locations <- airports %>%
+  select(faa, lat, lon)
+flights %>%
+  select(year:day, hour, origin, dest) %>%
+  left_join(locations, by = c("origin" = "faa")) %>%
+  left_join(locations, by = c("dest" = "faa"), suffix = c("_origin", "_dest"))
+```
+
+###Q3
+```{r}
+age <- select(planes, tailnum, productyear = year)
+flights2 <- flights %>%
+  inner_join(age, by = "tailnum") %>%
+  mutate(age1 = year - productyear) %>%
+  group_by(age1) %>%
+  summarize(dep_delay_mean = mean(dep_delay, na.rm = TRUE),
+    dep_delay_sd = sd(dep_delay, na.rm = TRUE),
+    arr_delay_mean = mean(arr_delay, na.rm = TRUE),
+    arr_delay_sd = sd(arr_delay, na.rm = TRUE),
+    n_arr_delay = sum(!is.na(arr_delay)),
+    n_dep_delay = sum(!is.na(dep_delay)))
+flights2
+```
+
+```{r}
+ggplot(flights2) +
+  geom_point(aes(age1, dep_delay_mean, color = "dep")) +
+   geom_point(aes(age1, arr_delay_mean, color = "arr")) 
+```
+
+###Q4
+```{r}
+flights %>%
+  inner_join(weather) %>%
+  group_by(precip) %>%
+  summarise(delay = mean(dep_delay, na.rm = TRUE)) %>%
+  ggplot(aes(x = precip, y = delay)) +
+  geom_line() + geom_point()
+```
+
+###Q5
+there were derechos.
+```{r}
+delay1 <- flights %>%
+  filter(year == 2013, month == 6, day == 13) %>%
+  group_by(dest) %>%
+  summarise(depdelay = mean(dep_delay, na.rm = TRUE)) %>%
+  inner_join(airports, by = c(dest = "faa")) %>%
+  select(dest, depdelay, lon, lat) %>%
+  ggplot(aes(lon, lat)) +
+    geom_point(aes(size = depdelay, color = depdelay)) +
+    borders("state") +
+    coord_quickmap() +
+   scale_color_viridis_c()
+delay1
+```
+
+##Filter-join
+
+###Q1
+flights with missing tailnums also miss the dep&arr and airtime. They are probably being cancelled.
+```{r}
+filter(flights, is.na(tailnum))
+```
+
+###Q2

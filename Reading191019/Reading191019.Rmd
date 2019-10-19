@@ -1,0 +1,179 @@
+---
+title: "Reading191019"
+output: 
+  html_document:
+    keep_md: TRUE
+    toc: TRUE
+    toc_float: TRUE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(nycflights13)
+```
+
+#Ch. 9
+
+##Gather and spread
+```{r}
+table4a %>%
+    gather(`1999`, `2000`, key = "year", value = "cases")
+```
+
+```{r}
+table2
+spread(table2, key = type, value = count)
+```
+
+##Seperate and unite
+```{r}
+table3 %>%
+    separate(rate, into = c("cases", "population"))
+table3 %>%
+    separate(rate, into = c("cases", "population"), sep = "/", convert = T)
+```
+
+```{r}
+table5
+table5 %>%
+    unite(Year, century, year)
+table5 %>%
+    unite(Year, century, year, sep = "")
+```
+
+```{r}
+tibble(x = c("X1", "X2", "Y1", "Y2")) %>%
+  separate(x, c("variable", "into"), sep = c(1))
+```
+Because the inputs are characters, sep =1 --> sep =c(1)
+
+###Extract
+```{r}
+tibble(x = c("X_1", "X_2", "AA_1", "AA_2")) %>%
+  extract(x, c("variable", "id"), regex = "([A-Z])_([0-9])")
+tibble(x = c("X11", "X2", "AA1", "AA2")) %>%
+  extract(x, c("variable", "id"), regex = "([A-Z]+)([0-9]+)")
+```
+
+##Missing values
+```{r}
+stocks <- tibble(
+year =c(2015,2015,2015,2015,2016,2016,2016), qtr =c( 1, 2, 3, 4, 2, 3, 4), return=c(1.88,0.59,0.35, NA,0.92,0.17,2.66)
+)
+```
+explicit missing: NA
+implicit missing: e.g. 2016.1
+```{r}
+stocks %>%
+spread(year, return) %>%
+gather(year, return, `2015`:`2016`, na.rm = TRUE)
+```
+
+```{r}
+stocks %>%
+    complete(year, qtr)
+```
+
+###When NA means previous value carries forward
+```{r}
+treatment <- tribble(
+~ person, ~ treatment, ~response, "Derrick Whitmore", 1, 7,
+NA, 2, 10,
+NA, 3, 9, "Katherine Burke", 1, 4
+)
+```
+
+```{r}
+treatment %>%
+  fill(person)
+```
+
+##WHO case study
+```{r}
+who1 <- who %>%
+  gather(new_sp_m014:newrel_f65, key = "key", value = "cases",
+na.rm = TRUE) %>%
+  select(-iso2, -iso3) %>%
+  mutate(key = stringr::str_replace(key, "newrel", "new_rel")) %>%
+  separate(key, c("new", "type", "sexage"), sep = "_") %>%
+  select(-new) %>%
+  separate("sexage", c("sex", "age"), sep = 1)
+who1
+```
+
+#Ch. 10 Relational data
+
+##nycflights
+```{r}
+flights_latlon <- flights %>%
+  inner_join(select(airports, origin = faa, origin_lat = lat, origin_lon = lon),
+    by = "origin"
+  ) %>%
+  inner_join(select(airports, dest = faa, dest_lat = lat, dest_lon = lon),
+    by = "dest"
+  )
+```
+
+
+```{r}
+flights_latlon %>%
+  slice(1:100) %>%
+  ggplot(aes(
+    x = origin_lon, xend = dest_lon,
+    y = origin_lat, yend = dest_lat
+  )) +
+  borders("state") +
+  geom_segment(arrow = arrow(length = unit(0.1, "cm"))) +
+  coord_quickmap() +
+  labs(y = "Latitude", x = "Longitude")
+```
+
+##Mutating Joins
+
+```{r}
+flights2 <- flights %>%
+    select(year:day, hour, origin, dest, tailnum, carrier)
+ flights2 %>%
+    select(-year, -origin, -dest) %>%
+    left_join(airlines, by = "carrier")
+```
+can be achieved using mutating
+```{r}
+flights2 %>%
+    select(-year, -origin, -dest) %>%
+    mutate(name = airlines$name[match(carrier, airlines$carrier)])
+```
+
+###Inner-joins
+```{r}
+ x <- tribble(~key, ~val_x,
+              1, "x1",
+              2, "x2",
+              3, "x3")
+ y <- tribble(~key, ~val_y,
+              1, "y1",
+              2, "y2",
+              4, "y3")
+```
+
+```{r}
+x %>%
+  inner_join(y, by = "key")
+```
+
+###Outer-joins
+keep observation that appear in both tables
+left: keep all in x; right: keep all in y; full: keep all
+```{r}
+x %>%
+  full_join(y, by = "key")
+```
+
+###Natural join
+match the common variables.
+```{r}
+flights2 %>%
+  left_join(weather)
+```
+
