@@ -73,3 +73,95 @@ str_view(c("grey", "gray"), "gr(e|a)y")
 str_view(fruit, "(..)\\1", match = TRUE)
 ```
 
+###Extract
+
+```{r}
+colors <- c("red", "orange", "yellow", "green", "blue", "purple")
+color_match <- str_c(colors, collapse = "|") 
+color_match
+has_color <- str_subset(sentences, color_match) 
+matches <- str_extract(has_color, color_match) 
+head(matches)
+```
+
+```{r}
+more <- sentences[str_count(sentences, color_match) > 1]
+str_view_all(more, color_match)
+str_extract(more, color_match)
+```
+
+```{r}
+str_extract_all(more, color_match, simplify = TRUE)
+```
+
+```{r}
+x <- c("a", "a b", "a b c") 
+str_extract_all(x, "[a-z]", simplify = TRUE)
+```
+
+###Locate
+
+```{r}
+str_locate("The quick (???brown???) fox can???t jump 32.3 feet, right?", "ju")
+```
+
+###Others
+
+```{r}
+bananas <- c("banana", "Banana", "BANANA")
+    str_view(bananas, regex("banana", ignore_case = T))
+```
+
+```{r}
+x <- "Line 1\nLine 2\nLine 3"
+str_extract_all(x, "^Line")
+```
+
+```{r}
+str_extract_all(x, regex("^Line", multiline = TRUE))
+```
+
+```{r}
+phone <- regex("
+\\(? # optional opening parens
+(\\d{3}) # area code
+[)- ]? # optional closing parens, dash, or space (\\d{3}) # another three numbers
+[ -]? # optional space or dash
+(\\d{3}) # three more numbers
+", comments = TRUE)
+str_match("514-791-8141", phone)
+```
+
+```{r}
+microbenchmark::microbenchmark(
+    fixed = str_detect(sentences, fixed("the")),
+    regex = str_detect(sentences, "the"),
+    times = 20
+)
+```
+
+coll()
+```{r}
+a1 <- "\u00e1" 
+a2 <- "a\u0301" 
+c(a1, a2)
+str_detect(a1, fixed(a2)) 
+str_detect(a1, coll(a2))
+```
+
+
+```{r}
+i <- c("I", "??", "i", "??")
+str_subset(i, coll("i", ignore_case = TRUE))
+```
+
+###Other regex
+
+```{r}
+apropos("replace")
+```
+
+```{r}
+head(dir(pattern = "\\.Rmd$"))
+```
+

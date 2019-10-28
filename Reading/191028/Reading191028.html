@@ -291,25 +291,113 @@ str_sub(z, 1, 3)</code></pre>
 <h3>Anchors</h3>
 <pre class="r"><code>x &lt;- c(&quot;apple pie&quot;, &quot;apple&quot;, &quot;apple cake&quot;)
 str_view(x, &quot;apple&quot;)</code></pre>
-<div id="htmlwidget-62c97f9fccbc5bca90e4" style="width:960px;height:100%;" class="str_view html-widget"></div>
-<script type="application/json" data-for="htmlwidget-62c97f9fccbc5bca90e4">{"x":{"html":"<ul>\n  <li><span class='match'>apple<\/span> pie<\/li>\n  <li><span class='match'>apple<\/span><\/li>\n  <li><span class='match'>apple<\/span> cake<\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
+<div id="htmlwidget-3506183e314482fa0b39" style="width:960px;height:100%;" class="str_view html-widget"></div>
+<script type="application/json" data-for="htmlwidget-3506183e314482fa0b39">{"x":{"html":"<ul>\n  <li><span class='match'>apple<\/span> pie<\/li>\n  <li><span class='match'>apple<\/span><\/li>\n  <li><span class='match'>apple<\/span> cake<\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
 <pre class="r"><code>str_view(x, &quot;^apple$&quot;)    </code></pre>
-<div id="htmlwidget-aefe44826d7a0b4c37c3" style="width:960px;height:100%;" class="str_view html-widget"></div>
-<script type="application/json" data-for="htmlwidget-aefe44826d7a0b4c37c3">{"x":{"html":"<ul>\n  <li>apple pie<\/li>\n  <li><span class='match'>apple<\/span><\/li>\n  <li>apple cake<\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
+<div id="htmlwidget-24896816bade927cda60" style="width:960px;height:100%;" class="str_view html-widget"></div>
+<script type="application/json" data-for="htmlwidget-24896816bade927cda60">{"x":{"html":"<ul>\n  <li>apple pie<\/li>\n  <li><span class='match'>apple<\/span><\/li>\n  <li>apple cake<\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
 </div>
 <div id="character-classes" class="section level3">
 <h3>character classes</h3>
 <p><code>\d</code> matches any digit. <code>\s</code> matches any whitespace (e.g., space, tab, newline).<br />
 <code>[abc]</code> matches a, b, or c. <code>[^abc]</code> matches anything except a, b, or c.</p>
 <pre class="r"><code>str_view(c(&quot;grey&quot;, &quot;gray&quot;), &quot;gr(e|a)y&quot;)</code></pre>
-<div id="htmlwidget-f4eea3a04d4515db9032" style="width:960px;height:100%;" class="str_view html-widget"></div>
-<script type="application/json" data-for="htmlwidget-f4eea3a04d4515db9032">{"x":{"html":"<ul>\n  <li><span class='match'>grey<\/span><\/li>\n  <li><span class='match'>gray<\/span><\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
+<div id="htmlwidget-dde2483f0ecde59fc79e" style="width:960px;height:100%;" class="str_view html-widget"></div>
+<script type="application/json" data-for="htmlwidget-dde2483f0ecde59fc79e">{"x":{"html":"<ul>\n  <li><span class='match'>grey<\/span><\/li>\n  <li><span class='match'>gray<\/span><\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
 </div>
 <div id="grouping-backreference" class="section level3">
 <h3>Grouping &amp;backreference</h3>
 <pre class="r"><code>str_view(fruit, &quot;(..)\\1&quot;, match = TRUE)</code></pre>
-<div id="htmlwidget-7fb9b20ce4617c580c33" style="width:960px;height:100%;" class="str_view html-widget"></div>
-<script type="application/json" data-for="htmlwidget-7fb9b20ce4617c580c33">{"x":{"html":"<ul>\n  <li>b<span class='match'>anan<\/span>a<\/li>\n  <li><span class='match'>coco<\/span>nut<\/li>\n  <li><span class='match'>cucu<\/span>mber<\/li>\n  <li><span class='match'>juju<\/span>be<\/li>\n  <li><span class='match'>papa<\/span>ya<\/li>\n  <li>s<span class='match'>alal<\/span> berry<\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
+<div id="htmlwidget-f93ad6d5eef75312ec34" style="width:960px;height:100%;" class="str_view html-widget"></div>
+<script type="application/json" data-for="htmlwidget-f93ad6d5eef75312ec34">{"x":{"html":"<ul>\n  <li>b<span class='match'>anan<\/span>a<\/li>\n  <li><span class='match'>coco<\/span>nut<\/li>\n  <li><span class='match'>cucu<\/span>mber<\/li>\n  <li><span class='match'>juju<\/span>be<\/li>\n  <li><span class='match'>papa<\/span>ya<\/li>\n  <li>s<span class='match'>alal<\/span> berry<\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
+</div>
+<div id="extract" class="section level3">
+<h3>Extract</h3>
+<pre class="r"><code>colors &lt;- c(&quot;red&quot;, &quot;orange&quot;, &quot;yellow&quot;, &quot;green&quot;, &quot;blue&quot;, &quot;purple&quot;)
+color_match &lt;- str_c(colors, collapse = &quot;|&quot;) 
+color_match</code></pre>
+<pre><code>## [1] &quot;red|orange|yellow|green|blue|purple&quot;</code></pre>
+<pre class="r"><code>has_color &lt;- str_subset(sentences, color_match) 
+matches &lt;- str_extract(has_color, color_match) 
+head(matches)</code></pre>
+<pre><code>## [1] &quot;blue&quot; &quot;blue&quot; &quot;red&quot;  &quot;red&quot;  &quot;red&quot;  &quot;blue&quot;</code></pre>
+<pre class="r"><code>more &lt;- sentences[str_count(sentences, color_match) &gt; 1]
+str_view_all(more, color_match)</code></pre>
+<div id="htmlwidget-d456e330a24e33796058" style="width:960px;height:100%;" class="str_view html-widget"></div>
+<script type="application/json" data-for="htmlwidget-d456e330a24e33796058">{"x":{"html":"<ul>\n  <li>It is hard to erase <span class='match'>blue<\/span> or <span class='match'>red<\/span> ink.<\/li>\n  <li>The <span class='match'>green<\/span> light in the brown box flicke<span class='match'>red<\/span>.<\/li>\n  <li>The sky in the west is tinged with <span class='match'>orange<\/span> <span class='match'>red<\/span>.<\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>str_extract(more, color_match)</code></pre>
+<pre><code>## [1] &quot;blue&quot;   &quot;green&quot;  &quot;orange&quot;</code></pre>
+<pre class="r"><code>str_extract_all(more, color_match, simplify = TRUE)</code></pre>
+<pre><code>##      [,1]     [,2] 
+## [1,] &quot;blue&quot;   &quot;red&quot;
+## [2,] &quot;green&quot;  &quot;red&quot;
+## [3,] &quot;orange&quot; &quot;red&quot;</code></pre>
+<pre class="r"><code>x &lt;- c(&quot;a&quot;, &quot;a b&quot;, &quot;a b c&quot;) 
+str_extract_all(x, &quot;[a-z]&quot;, simplify = TRUE)</code></pre>
+<pre><code>##      [,1] [,2] [,3]
+## [1,] &quot;a&quot;  &quot;&quot;   &quot;&quot;  
+## [2,] &quot;a&quot;  &quot;b&quot;  &quot;&quot;  
+## [3,] &quot;a&quot;  &quot;b&quot;  &quot;c&quot;</code></pre>
+</div>
+<div id="locate" class="section level3">
+<h3>Locate</h3>
+<pre class="r"><code>str_locate(&quot;The quick (???brown???) fox can???t jump 32.3 feet, right?&quot;, &quot;ju&quot;)</code></pre>
+<pre><code>##      start end
+## [1,]    37  38</code></pre>
+</div>
+<div id="others" class="section level3">
+<h3>Others</h3>
+<pre class="r"><code>bananas &lt;- c(&quot;banana&quot;, &quot;Banana&quot;, &quot;BANANA&quot;)
+    str_view(bananas, regex(&quot;banana&quot;, ignore_case = T))</code></pre>
+<div id="htmlwidget-e10edd93682df20b3ae6" style="width:960px;height:100%;" class="str_view html-widget"></div>
+<script type="application/json" data-for="htmlwidget-e10edd93682df20b3ae6">{"x":{"html":"<ul>\n  <li><span class='match'>banana<\/span><\/li>\n  <li><span class='match'>Banana<\/span><\/li>\n  <li><span class='match'>BANANA<\/span><\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>x &lt;- &quot;Line 1\nLine 2\nLine 3&quot;
+str_extract_all(x, &quot;^Line&quot;)</code></pre>
+<pre><code>## [[1]]
+## [1] &quot;Line&quot;</code></pre>
+<pre class="r"><code>str_extract_all(x, regex(&quot;^Line&quot;, multiline = TRUE))</code></pre>
+<pre><code>## [[1]]
+## [1] &quot;Line&quot; &quot;Line&quot; &quot;Line&quot;</code></pre>
+<pre class="r"><code>phone &lt;- regex(&quot;
+\\(? # optional opening parens
+(\\d{3}) # area code
+[)- ]? # optional closing parens, dash, or space (\\d{3}) # another three numbers
+[ -]? # optional space or dash
+(\\d{3}) # three more numbers
+&quot;, comments = TRUE)
+str_match(&quot;514-791-8141&quot;, phone)</code></pre>
+<pre><code>##      [,1]      [,2]  [,3] 
+## [1,] &quot;514-791&quot; &quot;514&quot; &quot;791&quot;</code></pre>
+<pre class="r"><code>microbenchmark::microbenchmark(
+    fixed = str_detect(sentences, fixed(&quot;the&quot;)),
+    regex = str_detect(sentences, &quot;the&quot;),
+    times = 20
+)</code></pre>
+<pre><code>## Unit: microseconds
+##   expr     min       lq     mean   median       uq     max neval
+##  fixed  91.859  93.4675 122.7660 100.5655 129.4165 318.113    20
+##  regex 327.153 331.3340 342.4194 333.9600 339.9765 391.882    20</code></pre>
+<p>coll()</p>
+<pre class="r"><code>a1 &lt;- &quot;\u00e1&quot; 
+a2 &lt;- &quot;a\u0301&quot; 
+c(a1, a2)</code></pre>
+<pre><code>## [1] &quot;&lt;U+00E1&gt;&quot; &quot;a&lt;U+0301&gt;&quot;</code></pre>
+<pre class="r"><code>str_detect(a1, fixed(a2)) </code></pre>
+<pre><code>## [1] FALSE</code></pre>
+<pre class="r"><code>str_detect(a1, coll(a2))</code></pre>
+<pre><code>## [1] TRUE</code></pre>
+<pre class="r"><code>i &lt;- c(&quot;I&quot;, &quot;??&quot;, &quot;i&quot;, &quot;??&quot;)
+str_subset(i, coll(&quot;i&quot;, ignore_case = TRUE))</code></pre>
+<pre><code>## [1] &quot;I&quot; &quot;i&quot;</code></pre>
+</div>
+<div id="other-regex" class="section level3">
+<h3>Other regex</h3>
+<pre class="r"><code>apropos(&quot;replace&quot;)</code></pre>
+<pre><code>## [1] &quot;%+replace%&quot;       &quot;replace&quot;          &quot;replace_na&quot;      
+## [4] &quot;setReplaceMethod&quot; &quot;str_replace&quot;      &quot;str_replace_all&quot; 
+## [7] &quot;str_replace_na&quot;   &quot;theme_replace&quot;</code></pre>
+<pre class="r"><code>head(dir(pattern = &quot;\\.Rmd$&quot;))</code></pre>
+<pre><code>## [1] &quot;Reading191028.Rmd&quot;</code></pre>
 </div>
 </div>
 

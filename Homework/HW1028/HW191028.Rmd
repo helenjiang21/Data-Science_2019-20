@@ -11,6 +11,7 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(stringr)
+library(stringi)
 ```
 
 ##String Basics
@@ -226,3 +227,164 @@ str_subset(words, "(.).*\\1.*\\1")
 ```
 
 ##Tools
+
+###Detect
+
+####Q1
+
+```{r}
+words[str_detect(words, "^x|x$")]
+str_subset(words, "^[aeiou].*[^aeiou]$") %>% head()
+```
+
+```{r}
+pattern <- cross(rerun(5, c("a", "e", "i", "o", "u")),
+    .filter = function(...) {
+      x <- as.character(unlist(list(...)))
+      length(x) != length(unique(x))
+    }
+  ) %>%
+  map_chr(~ str_c(unlist(.x), collapse = ".*")) %>%
+  str_c(collapse = "|")
+str_subset(words, pattern)
+```
+
+```{r}
+words[str_detect(words, "a") &
+  str_detect(words, "e") &
+  str_detect(words, "i") &
+  str_detect(words, "o") &
+  str_detect(words, "u")]
+```
+
+###Extract
+
+####Q1
+
+```{r}
+colours <- c("red", "orange", "yellow", "green", "blue", "purple")
+color_match <- str_c(colours, collapse = "|") 
+color_match2 <- str_c("\\b(", str_c(colours, collapse = "|"), ")\\b")
+more2 <- sentences[str_count(sentences, color_match) > 1]
+str_view_all(more2, color_match2, match = TRUE)
+```
+
+####Q2
+
+```{r}
+pattern <- "\\b[A-Za-z]+ing\\b"
+sentences_with_ing <- str_detect(sentences, pattern)
+unique(unlist(str_extract_all(sentences[sentences_with_ing], pattern))) %>%
+  head()
+```
+
+```{r}
+unique(unlist(str_extract_all(sentences, "\\b[A-Za-z]{3,}s\\b"))) %>%
+  head()
+```
+
+###Grouped matches
+
+####Q1
+
+```{r}
+numword <- "\\b(one|two|three|four|five|six|seven|eight|nine|ten) +(\\w+)"
+sentences[str_detect(sentences, numword)] %>%
+  str_extract(numword)
+```
+
+####Q2
+
+```{r}
+contraction <- "([A-Za-z]+)'([A-Za-z]+)"
+sentences[str_detect(sentences, contraction)] %>%
+  str_extract(contraction) %>%
+  str_split("'")
+```
+
+###Replacing
+
+####Q1
+
+```{r}
+str_replace_all("past/present/future", "/", "\\\\")
+```
+
+####Q2
+
+```{r}
+replacements <- c(
+  "A" = "a", "B" = "b", "C" = "c", "D" = "d", "E" = "e",
+  "F" = "f", "G" = "g", "H" = "h", "I" = "i", "J" = "j",
+  "K" = "k", "L" = "l", "M" = "m", "N" = "n", "O" = "o",
+  "P" = "p", "Q" = "q", "R" = "r", "S" = "s", "T" = "t",
+  "U" = "u", "V" = "v", "W" = "w", "X" = "x", "Y" = "y",
+  "Z" = "z"
+)
+lower_words <- str_replace_all(words, pattern = replacements)
+head(lower_words)
+```
+
+####Q3
+
+```{r}
+swapped <- str_replace_all(words, "^([A-Za-z])(.*)([a-z])$", "\\3\\2\\1")
+intersect(swapped, words)
+```
+
+###Splitting
+
+####Q1
+
+```{r}
+x <- c("apples, pears, and bananas")
+str_split(x, ", +(and +)?")[[1]]
+```
+
+####Q2
+
+```{r}
+sentence <- "The quick (???brown???) fox can???t jump 32.3 feet, right?"
+str_split(sentence, boundary("word"))
+```
+
+####Q3
+
+```{r}
+str_split("ab. cd|agt", "")
+```
+
+```{r}
+str_locate("The quick (???brown???) fox can???t jump 32.3 feet, right?", "ju")
+```
+
+##Other patterns
+
+###Q1
+
+```{r}
+str_subset(c("a\\b", "ab"), "\\\\")
+str_subset(c("a\\b", "ab"), fixed("\\"))
+```
+
+###Q2
+```{r}
+tibble(word = unlist(str_extract_all(sentences, boundary("word")))) %>%
+  mutate(word = str_to_lower(word)) %>%
+  count(word, sort = TRUE) %>%
+  head(5)
+```
+
+##Stringi
+
+###Q1
+
+```{r}
+stri_count_words(head(sentences))
+stri_duplicated(c(
+  "the", "brown", "cow", "jumped", "over",
+  "the", "lazy", "fox"
+))
+stri_rand_strings(4, 5)
+```
+
