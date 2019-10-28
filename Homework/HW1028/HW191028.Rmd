@@ -1,0 +1,228 @@
+---
+title: "HW191028"
+output:
+  html_document:
+    keep_md: TRUE
+    toc: TRUE
+    toc_float: TRUE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(stringr)
+```
+
+##String Basics
+
+###Q1
+
+```{r}
+paste("hello", "Helen")
+paste0("hello", "Helen")
+str_c("hello", "Helen")
+```
+
+```{r}
+paste("hello", NA)
+paste0("hello", NA)
+str_c("hello", NA)
+```
+
+###Q2
+
+`sep` is used to seperate elements in a string by inserting a string of seperator, while `collapse` separates elements of the character vector into a character vector of length one.
+
+###Q3
+
+```{r}
+x <- c("a", "abc", "abcd", "abcde", "abcdef")
+L <- str_length(x)
+m <- ceiling(L / 2)
+str_sub(x, m, m)
+```
+
+###Q4
+
+```{r}
+str_wrap("let me see what is the use of this function", width = 6)
+```
+
+###Q5
+
+```{r}
+str_trim(" ab c ")
+str_trim(" abc ", side = "left")
+```
+
+```{r}
+str_pad("abc", 4, side = "right")
+str_pad("abc", 4)
+str_pad("abc", 5)
+str_pad("abc", 5, side = "both")
+```
+
+###Q6
+
+```{r}
+str_commasep <- function(x) {
+  n <- length(x)
+  if (n == 0) {
+    ""
+  } else if (n == 1) {
+    x
+  } else if (n == 2) {
+    str_c(x[[1]], "and", x[[2]], sep = " ")
+  } else {
+    not_last <- str_c(x[seq_len(n - 1)], ",")
+    # prepend "and" to the last element
+    last <- str_c("and", x[[n]], sep = " ")
+    # combine parts with spaces
+    str_c(c(not_last, last), collapse = " ")
+  }
+}
+str_commasep(c("a", "b", "c"))
+```
+
+##Matching
+
+###Basic Match
+
+####Q1
+
+`\` escapes next character; `\\` gives a literary "\"; `\\\` gives a "\" and escapes the next character.
+
+####Q2
+
+```{r}
+str_view("\"'\\", "\"'\\\\", match = TRUE)
+```
+
+####Q3
+
+```{r}
+str_view(c(".a.b.c", ".a.b", "....."), c("\\..\\..\\.."), match = TRUE)
+```
+
+###Anchor
+
+####Q1
+
+```{r}
+str_view(c("$^$", "ab$^$sfas"), "^\\$\\^\\$$", match = TRUE)
+```
+
+####Q2
+
+```{r}
+str_view(stringr::words, "^y", match = TRUE)
+str_view(stringr::words, "x$", match = TRUE)
+str_view(stringr::words, "^...$", match = TRUE)
+str_view(stringr::words, ".......", match = TRUE)
+```
+
+###Character classes
+
+####Q1
+
+```{r}
+str_subset(stringr::words, "^[aeiou]")
+```
+
+```{r}
+str_subset(stringr::words, "^[^aeiou]+$")
+```
+
+```{r}
+str_subset(stringr::words, "[^e]ed$")
+```
+
+```{r}
+str_subset(stringr::words, "i(ng|se)$")
+```
+
+####Q2
+
+```{r}
+str_subset(stringr::words, "(cie|[^c]ei)")
+```
+
+```{r}
+str_subset(stringr::words, "(cei|[^c]ie)")
+```
+
+####Q3
+
+```{r}
+str_subset(stringr::words, "q[^u]")
+```
+
+####Q4
+
+```{r}
+str_subset(stringr::words, "ou|ise$|ae|oe|yse$")
+```
+
+####Q5
+
+```{r}
+phone <- "609-933-3471"
+str_view(phone, "\\d\\d\\d-\\d\\d\\d-\\d\\d\\d\\d")
+```
+
+```{r}
+str_view(phone, "[0-9][0-9][0-9]-[0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]")
+```
+
+###Repetition
+
+####Q1
+
+`?` equals `{0,1}`; `+` equals `{1,}`; `*` equals`{0,}`.
+
+####Q2
+
+`^.*$` matches everything.
+`"\\{.+\\}"` matches strings with {} and something within.
+`\d{4}-\d{2}-\d{2}`matches strings with 4digits-2digits-2digits.
+"\\\\{4}" matches four backslashes.
+
+####Q3
+
+```{r}
+str_view(words, "^[^aeiou]{3}", match = TRUE)
+```
+
+```{r}
+str_view(words, "[aeiou]{3,}", match = TRUE)
+```
+
+```{r}
+str_view(words, "([aeiou][^aeiou]){2,}", match = TRUE)
+```
+
+###Grouping & Backreferences
+
+####Q1
+
+`(.)\1\1` a same character appears three times.
+`"(.)(.)\\2\\1"` abba
+`(..)\1` abab
+`"(.).\\1.\\1"` abaca
+`"(.)(.)(.).*\\3\\2\\1"` abcd(sth here)cba
+
+####Q2
+
+```{r}
+str_subset(words, "^(.).*\\1$")
+```
+
+```{r}
+str_subset(words, "(.)(.).*\\1\\2")
+```
+
+```{r}
+str_subset(words, "(.).*\\1.*\\1")
+```
+
+##Tools

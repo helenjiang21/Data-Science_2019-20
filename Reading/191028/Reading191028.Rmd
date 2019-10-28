@@ -1,0 +1,75 @@
+---
+title: "Reading191028"
+output: 
+ html_document:
+    keep_md: TRUE
+    toc: TRUE
+    toc_float: TRUE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(stringr)
+```
+
+##String Basic
+
+```{r}
+x <- c("a", "I\'m clever", NA)
+str_length(x)
+read_lines(x)
+```
+
+###combining strings
+
+```{r}
+str_c("x", "y", "z")
+```
+
+```{r}
+y <- c("abc", NA)
+str_c("|-", y, "-|")
+str_c("|-", str_replace_na(x), "-|")
+str_c("prefix-", c("a", "b", "c"), "-suffix")
+```
+
+```{r}
+str_c("prefix-", c("a", "b", "c"), "-suffix")
+```
+
+###subsetting
+
+```{r}
+z <- c("Apple", "Banana", "Pear") 
+str_sub(z, 1, 3)
+str_sub(z, -3, -1)
+str_sub(z, 1, 5)
+str_sub(z, 1, -5)
+```
+
+###Anchors
+
+```{r}
+x <- c("apple pie", "apple", "apple cake")
+str_view(x, "apple")
+str_view(x, "^apple$")    
+```
+
+###character classes
+
+`\d` matches any digit.
+`\s` matches any whitespace (e.g., space, tab, newline).  
+`[abc]` matches a, b, or c.
+`[^abc]` matches anything except a, b, or c.
+
+```{r}
+str_view(c("grey", "gray"), "gr(e|a)y")
+```
+
+###Grouping &backreference
+
+```{r}
+str_view(fruit, "(..)\\1", match = TRUE)
+```
+
