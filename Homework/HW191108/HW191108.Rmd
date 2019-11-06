@@ -1,0 +1,287 @@
+---
+title: "HW191108"
+output: 
+   html_document:
+    keep_md: TRUE
+    toc: TRUE
+    toc_float: TRUE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(forcats)
+library(stringr)
+library(lubridate)
+library(nycflights13)
+```
+
+#Factor
+
+##GSS
+
+###Q1
+
+```{r}
+rincome_plot <-
+  gss_cat %>%
+  ggplot(aes(x = rincome)) +
+  geom_bar() +
+  theme(axis.text.x = element_text(angle = 40, hjust = 1))
+rincome_plot
+```
+
+###Q2
+
+```{r}
+gss_cat %>%
+  count(relig) %>%
+  arrange(desc(n)) 
+```
+
+```{r}
+gss_cat %>%
+  count(partyid) %>%
+  arrange(desc(n))
+```
+
+###Q3
+
+```{r}
+gss_cat %>%
+  filter(!denom %in% c(
+    "No answer", "Other", "Don't know", "Not applicable",
+    "No denomination"
+  )) %>%
+count(relig)
+```
+
+##Modifying factor order
+
+###Q1
+
+```{r}
+gss_cat %>%
+  filter(!is.na(tvhours)) %>%
+  ggplot(aes(x = tvhours)) +
+  geom_histogram(binwidth = 1)
+```
+
+It's skewed to the right, so median is a better indicator.
+
+###Q2
+
+```{r}
+keep(gss_cat, is.factor) %>% names()
+```
+
+The order of the rincome and partyid can be principled; others are basically arbitrary.
+
+##Modifying factor levels
+
+###Q1
+
+```{r}
+gss_cat %>%
+  mutate(partyid = fct_collapse(partyid, 
+    other = c("No answer", "Don't know", "Other party"),
+    rep = c("Strong republican", "Not str republican"),
+    ind = c("Ind,near rep", "Independent", "Ind,near dem"),
+    dem = c("Not str democrat", "Strong democrat"))) %>%
+  count(year, partyid) %>%
+  group_by(year) %>%
+  mutate(prop = n / sum(n)) %>%
+  ggplot(aes(year, prop, colour = fct_reorder2(partyid, year, prop))) +
+  geom_point() +
+  geom_line() +
+  labs(colour = "Party ID.")
+```
+
+###Q2
+
+```{r}
+gss_cat %>%
+  mutate(rincome = fct_collapse(rincome, 
+        `Unknown` = c("No answer", "Don't know", "Refused", "Not applicable"),
+        `Lt $5000` = c("Lt $1000", str_c("$", c("1000", "3000", "4000"), " to ", c("2999", "3999", "4999"))),
+        `$5000 to 10000` = str_c("$", c("5000", "6000", "7000", "8000"), " to ", c("5999", "6999", "7999", "9999")))
+  ) %>%
+  ggplot(aes(x = rincome)) +
+  geom_bar() +
+  coord_flip()
+```
+
+#Date/Time
+
+```{r}
+make_datetime_100 <- function(year, month, day, time) {
+  make_datetime(year, month, day, time %/% 100, time %% 100)
+}
+
+flights_dt <- flights %>%
+  filter(!is.na(dep_time), !is.na(arr_time)) %>%
+  mutate(
+    dep_time = make_datetime_100(year, month, day, dep_time),
+    arr_time = make_datetime_100(year, month, day, arr_time),
+    sched_dep_time = make_datetime_100(year, month, day, sched_dep_time),
+    sched_arr_time = make_datetime_100(year, month, day, sched_arr_time)
+  ) %>%
+  select(origin, dest, ends_with("delay"), ends_with("time"))
+```
+
+##Create Date/Time
+
+###Q1
+
+```{r}
+ret <- ymd(c("2010-10-10", "bananas"))
+ret
+```
+
+###Q2
+
+```{r}
+today(tzone = "EST")
+```
+
+###Q3
+
+```{r}
+d1 <- "January 1, 2010"
+mdy(d1)
+d2 <- "2015-Mar-07"
+ymd(d2)
+d3 <- "06-Jun-2017"
+dmy(d3)
+d4 <- c("August 19 (2015)", "July 1 (2015)") 
+mdy(d4)
+d5 <- "12/30/14"
+mdy(d5)
+```
+
+##Component
+
+```{r}
+sched_dep <- flights_dt %>%
+  mutate(minute = minute(sched_dep_time)) %>%
+  group_by(minute) %>%
+  summarise(avg_delay = mean(arr_delay, na.rm = TRUE), n = n())
+```
+
+###Q1
+
+```{r}
+flights_dt %>%
+  filter(!is.na(dep_time)) %>%
+  mutate(dep_hour = update(dep_time, yday = 100)) %>%
+  mutate(month = factor(month(dep_time))) %>%
+  ggplot(aes(dep_hour, color = month)) +
+  geom_freqpoly(binwidth = 60 * 60)
+```
+
+###Q2
+
+```{r}
+flights_dt %>%
+  mutate(dep_time_ = sched_dep_time + dep_delay * 60) %>%
+  filter(dep_time_ != dep_time) %>%
+  select(dep_time_, dep_time, sched_dep_time, dep_delay)
+```
+
+The date is different.
+
+###Q3
+
+```{r}
+flights_dt %>%
+  mutate(flight_duration = as.numeric(arr_time - dep_time), air_time_mins = air_time, diff = flight_duration - air_time_mins) %>%
+  select(origin, dest, flight_duration, air_time_mins, diff)
+```
+
+###Q4
+
+```{r}
+flights_dt %>%
+  mutate(sched_dep_hour = hour(sched_dep_time)) %>%
+  group_by(sched_dep_hour) %>%
+  summarise(dep_delay = mean(dep_delay)) %>%
+  ggplot(aes(y = dep_delay, x = sched_dep_hour)) +
+  geom_point() +
+  geom_smooth()
+```
+
+Avoid afternoon flights.
+
+###Q5
+
+```{r}
+flights_dt %>%
+  mutate(dow = wday(sched_dep_time, label = T)) %>%
+  group_by(dow) %>%
+  summarise(
+    dep_delay = mean(dep_delay),
+    arr_delay = mean(arr_delay, na.rm = TRUE)
+  ) %>%
+  ggplot() +
+  geom_bar(aes(x = dow, y = dep_delay), stat = "identity") 
+```
+
+###Q6
+
+```{r}
+ggplot(flights_dt, aes(x = minute(sched_dep_time))) +
+  geom_histogram(binwidth = 1)
+```
+
+```{r}
+ggplot(diamonds, aes(x = carat %% 1 * 100)) +
+  geom_histogram(binwidth = 1)
+```
+Peaks at nice values.
+
+###Q7
+
+```{r}
+flights_dt %>%
+  mutate(minute = minute(dep_time), early = dep_delay < 0) %>%
+  group_by(minute) %>%
+  summarise(early = mean(early, na.rm = TRUE), n = n()) %>%
+  ggplot(aes(minute, early)) +
+  geom_line()
+```
+
+##Time spans
+
+###Q1
+
+Because there isn't a fixed value of days in each month.
+
+###Q2
+
+`overnight` is either true or false; if it is true, the add one more day.
+
+###Q3
+
+```{r}
+ymd("2015-01-01") + months(0:11)
+```
+
+```{r}
+floor_date(today(), unit = "year") + months(0:11)
+```
+
+###Q4
+
+```{r}
+age <- function(bday) {
+  (bday %--% today()) %/% years(1)
+}
+age(ymd("2002-10-23"))
+```
+
+###Q5
+
+It's missing a parentheses before the slash
+```{r}
+(today() %--% (today() + years(1))) / months(1)
+```
