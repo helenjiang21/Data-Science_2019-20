@@ -1,0 +1,278 @@
+---
+title: "HW1118"
+output: 
+  html_document:
+    keep_md: TRUE
+    toc: TRUE
+    toc_float: TRUE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(lubridate)
+```
+
+##Functions
+
+###When to write functions
+
+####Q1
+
+```{r}
+rescale01_alt <- function(x, na.rm = FALSE) {
+  rng <- range(x, na.rm = na.rm, finite = TRUE)
+  (x - rng[1]) / (rng[2] - rng[1])
+}
+rescale01_alt(c(NA, 1:5), na.rm = FALSE)
+rescale01_alt(c(NA, 1:5), na.rm = TRUE)
+```
+
+####Q2
+
+```{r}
+rescale01 <- function(x) {
+  rng <- range(x, na.rm = TRUE, finite = TRUE)
+  y <- (x - rng[1]) / (rng[2] - rng[1])
+  y[y == -Inf] <- 0
+  y[y == Inf] <- 1
+  y
+}
+```
+
+####Q3
+
+```{r}
+prop_na <- function(x) {
+  mean(is.na(x))
+}
+sum_to_one <- function(x, na.rm = FALSE) {
+  x / sum(x, na.rm = na.rm)
+}
+coef_variation <- function(x, na.rm = FALSE) {
+  sd(x, na.rm = na.rm) / mean(x, na.rm = na.rm)
+}
+```
+
+####Q4
+
+```{r}
+variance <- function(x, na.rm = TRUE) {
+  n <- length(x)
+  m <- mean(x, na.rm = TRUE)
+  sq_err <- (x - m)^2
+  sum(sq_err) / (n - 1)
+}
+
+skewness <- function(x, na.rm = FALSE) {
+  n <- length(x)
+  m <- mean(x, na.rm = na.rm)
+  v <- var(x, na.rm = na.rm)
+  (sum((x - m)^3) / (n - 2)) / v^(3 / 2)
+}
+```
+
+####Q5
+
+```{r}
+both_na <- function(x, y) {
+  sum(is.na(x) & is.na(y))
+}
+```
+
+####Q6
+
+It check if the path in x is a directory. The second one check if the path in x is accessible.
+
+####Q7
+
+
+refrain <- function(chances) {
+  give_chances(
+    from = Good_Fairy,
+    to = foo_foo,
+    number = chances,
+    condition = "Don't behave",
+    consequence = turn_into_goon
+  )
+}
+
+main <- function() {
+  foo_foo %>%
+    hop(through = forest) %>%
+    scoop(up = field_mouse) %>%
+    bop(on = head)
+
+  down_came(Good_Fairy)
+  said(
+    Good_Fairy,
+    c(
+      "Little bunny Foo Foo",
+      "I don't want to see you",
+      "Scooping up the field mice",
+      "And bopping them on the head."
+    )
+  )
+}
+
+main()
+refrain(3)
+main()
+refrain(2)
+main()
+refrain(1)
+main()
+turn_into_goon(Good_Fairy, foo_foo)
+
+
+###Functions for human
+
+####Q1
+
+```{r}
+check_prefix <- function(string, prefix) {
+  substr(string, 1, nchar(prefix)) == prefix
+  }
+drop_last <- function(x) {
+if (length(x) <= 1) return(NULL)
+          x[-length(x)]
+        }
+replace_all <- function(x, y) {
+   rep(y, length.out = length(x))
+}
+```
+
+####Q2
+
+`rnorm()` samples from the univariate normal distribution, while `MASS::mvrnorm()` samples multivariate normal distribution.
+
+####Q3
+
+`norm_r()` groups by the distribution. `rnorm()` groups by the function.
+
+###Conditional execution
+
+####Q1
+
+`if()` tests a single condition, while `ifelse()` tests each element.
+
+####Q2
+
+```{r}
+greet <- function(time = lubridate::now()) {
+  hr <- lubridate::hour(time)
+  if (hr < 12) {
+    print("good morning")
+  } else if (hr < 17) {
+    print("good afternoon")
+  } else {
+    print("good evening")
+  }
+}
+```
+
+####Q3
+
+```{r}
+fizzbuzz <- function(x) {
+  if (!(x %% 3) && !(x %% 5)) {
+    "fizzbuzz"
+  } else if (!(x %% 3)) {
+    "fizz"
+  } else if (!(x %% 5)) {
+    "buzz"
+  } else {
+    as.character(x)
+  }
+}
+fizzbuzz(15)
+```
+
+####Q4
+
+```{r}
+temp <- seq(-20, 70, by = 5)
+cut(temp, c(-Inf, 0, 10, 20, 30, Inf),
+  right = TRUE,
+  labels = c("freezing", "cold", "cool", "warm", "hot")
+)
+```
+
+####Q5
+
+```{r}
+switch(1, "apple", "banana", "cantaloupe")
+switch(1.2, "apple", "banana", "cantaloupe")
+switch(2, "apple", "banana", "cantaloupe")
+```
+
+####Q6
+
+```{r}
+switchy <- function(x){
+switch(x,
+  a = ,
+  b = "ab",
+  c = ,
+  d = "cd"
+)
+}
+```
+
+```{r}
+switchy("a")
+switchy("e")
+```
+it ignores and skips NULL.
+
+###Arguments
+
+```{r}
+commas <- function(...) {
+  str_c(..., collapse = ", ")
+}
+```
+
+####Q1
+
+`
+commas(letters, collapse = "-")
+???
+the `collapse = "-"` is given to `...`, which means both `collapse = ", "` and `collapse = "-"` exists in commas.
+
+####Q2
+
+```{r}
+rule <- function(..., pad = "-") {
+  title <- paste0(...)
+  width <- getOption("width") - nchar(title) - 5
+  cat(title, " ", str_dup(pad, width), "\n", sep = "")
+}
+```
+
+```{r}
+rule("Valuable output", pad = "-+")
+```
+since pad has two characters it is too long. 
+Use `str_trunc()`
+```{r}
+rule <- function(..., pad = "-") {
+  title <- paste0(...)
+  width <- getOption("width") - nchar(title) - 5
+  padding <- str_dup(
+    pad,
+    ceiling(width / str_length(title))
+  ) %>%
+    str_trunc(width)
+  cat(title, " ", padding, "\n", sep = "")
+}
+```
+
+####Q3
+
+`trim` trims a fraction of observations from each end of the vector. To prevent the influence of outliers.
+
+####Q4
+
+it can take one of the three methods. the default is `pearson`.
+
