@@ -86,7 +86,7 @@ It check if the path in x is a directory. The second one check if the path in x 
 
 ####Q7
 
-
+```{r}
 refrain <- function(chances) {
   give_chances(
     from = Good_Fairy,
@@ -123,7 +123,7 @@ main()
 refrain(1)
 main()
 turn_into_goon(Good_Fairy, foo_foo)
-
+```
 
 ###Functions for human
 
@@ -235,9 +235,9 @@ commas <- function(...) {
 
 ####Q1
 
-`
+```{r}
 commas(letters, collapse = "-")
-???
+```
 the `collapse = "-"` is given to `...`, which means both `collapse = ", "` and `collapse = "-"` exists in commas.
 
 ####Q2
