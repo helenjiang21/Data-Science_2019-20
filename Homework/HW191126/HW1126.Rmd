@@ -1,0 +1,201 @@
+---
+title: "HW1126"
+output: 
+  html_document:
+    keep_md: TRUE
+    toc: TRUE
+    toc_float: TRUE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+##Types of atomic vectors
+
+###Q1
+
+```{r}
+x <- c(0, 1, NA, NaN, Inf, -Inf)
+is.finite(x)
+!is.infinite(x)
+```
+`is.finite()` returns False for NAs while `!is.infinite()` returns TRUE.
+
+###Q2
+
+```{r}
+dplyr::near
+dplyr::near(sqrt(2)^2, 2)
+```
+It allows the two values to be within a certain tolerance.
+
+###Q3
+
+```{r}
+.Machine$integer.max
+```
+
+```{r}
+.Machine$double.max
+.Machine$double.xmax
+```
+
+###Q4
+
+```{r}
+round_down <- function(x){
+  floor(x)
+}
+
+round_up <- function(x){
+  ceiling(x)
+}
+
+short <- function(x){
+  trunc(x)
+}
+
+far <- function(x){
+  sign(x)*ceiling(abs(x))
+}
+```
+
+###Q5
+
+`parse_logical`, `parse_integer` and `parse_number`.
+
+##Using Atomic vectors
+
+###Q1
+
+```{r}
+x <- c(-Inf, -1, 0, 1, Inf, NA, NaN)
+mean(is.na(x))
+sum(!is.finite(x))
+```
+The first finds the number of NAs in the vector, while the second finds the number of NAs and Infs.
+
+###Q2
+
+`is.vector()` checks if the object has any attributes.
+`is.atomic()` doesn't care if the object has an attributes.
+
+###Q3
+
+```{r}
+setNames(1:4, c("a", "b", "c", "d"))
+purrr::set_names(1:4, c("a", "b", "c", "d"))
+purrr::set_names(1:4, "a", "b", "c", "d")
+```
+
+###Q4
+
+```{r}
+last_value <- function(x) {
+  if (length(x)) {
+    x[[length(x)]]
+  } else {
+    x
+  }
+}
+last_value(1:10)
+```
+
+```{r}
+even_pos <- function(x) {
+  if (length(x)) {
+    x[seq_along(x) %% 2 == 0]
+  } else {
+    x
+  }
+}
+even_pos(1:10)
+```
+
+```{r}
+not_last <- function(x) {
+  if (length(x)) {
+    x[-length(x)]
+  } else {
+    # n == 0
+    x
+  }
+}
+not_last(1:10)
+```
+
+```{r}
+even_numbers <- function(x) {
+  x[x %% 2 == 0]
+}
+even_numbers(1:11)
+```
+
+###Q5
+
+```{r}
+x <- c(-1, 0, 1, Inf, -Inf, NaN, NA)
+x[-which(x > 0)]
+x[x <= 0]
+```
+logical operation like `<=` treat NaN as NA.
+
+###Q6
+
+```{r}
+x <- c(1:3)
+x[4]
+x[1:4]
+x[4:5]
+```
+
+##Lists
+
+```{r}
+a <- list(a = 1:3, b = "a string", c = pi, d = list(-1, -5))
+str(a[1:2])
+str(a[4])
+str(a[[4]])
+```
+
+```{r}
+a[[4]][[1]]
+```
+
+###Q2
+
+```{r}
+x <- tibble(a = 1:2, b = 3:4)
+x
+x[1]
+x[["b"]]
+```
+Tibble columns need to have consistent length, while lists can have different length.
+
+##Augmented lists
+
+###Q1
+
+```{r}
+x <- hms::hms(3600)
+x
+typeof(x)
+attributes(x)
+```
+Print time. Double. Units and class.
+
+###Q2
+
+```{r}
+tibble(x = 2, y = 1:5)
+```
+It gives a warning and won't recycle unless a value has only one elements.
+
+###Q3
+
+```{r}
+tibble(x = 1:3, y = list("a", 1, list(1:3)))
+```
+It works.

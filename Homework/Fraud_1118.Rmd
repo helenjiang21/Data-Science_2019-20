@@ -1,0 +1,117 @@
+---
+title: "Fraud_1118"
+output: 
+  html_document:
+    keep_md: TRUE
+    toc: TRUE
+    toc_float: TRUE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggplot2)
+library(readr)
+library(IPtoCountry)
+library(iptools)
+library(rgeolocate)
+library(maps)
+library(lutz)
+```
+
+##Import
+
+```{r}
+Fraud <- read_csv("Homework/HW1004/Fraud/Fraud_Data.csv")
+IPCountry <- read_csv("Homework/HW1004/Fraud/IpAddress_to_Country.csv")
+```
+
+##IPtoCountry
+
+###Change IPv4 to Ipv6
+
+```{r, include=FALSE}
+ipv4_to_ipv6 <- function(x) {
+  sapply(x, function(res) {
+    res <- strsplit(res, ".", fixed=TRUE)[[1]]
+    res <- as.numeric(res)
+    res <- sprintf("%02x", res)
+    res <- toupper(sprintf("%s%s:%s%s", res[1], res[2], res[3], res[4]))
+    sprintf("2002:%s::%s", res, res)
+  }, USE.NAMES = FALSE)
+}
+
+ipv6_to_ipv4 <- function(x) {
+  sapply(x, function(res) {
+    res <- iptools::expand_ipv6(res) # NOTE: github version
+    res <- strsplit(res, ":", fixed=TRUE)[[1]]
+    res <- tail(res, 2)
+    res <- c( substr(res[1], 1, 2), substr(res[1], 3, 4), substr(res[2], 1, 2), substr(res[2], 3, 4))
+    res <- as.integer(as.raw(sprintf("0x%s", res)))
+    res <- paste0(res, collapse=".")
+  }, USE.NAMES = FALSE)
+}
+
+convertIP <- function(x) {
+  vals = read.table(sep=".")
+  return( vals[1] + 256*vals[2] + 256^2*vals[3] + 256^3*vals[4])
+}
+```
+
+###Using iptools to convert ip
+
+```{r}
+IPcountry <- IPCountry %>%
+  mutate(makesense = lower_bound_ip_address <= upper_bound_ip_address) %>%
+  filter(makesense == T) %>%
+  mutate(IPfrom = lower_bound_ip_address, IPto = upper_bound_ip_address, Country = country)
+```
+
+
+```{r}
+Fraud1 <- Fraud %>%
+  mutate(ip = numeric_to_ip(ip_address)) %>%
+  mutate(IP = IP_integer(ip))
+Fraud1
+```
+
+```{r}
+Fraud2 <- Fraud1 %>%
+  arrange(IP) %>%
+  filter(class == 1) %>%
+  filter(is.na(IP) == F) %>%
+  filter(IP >= 18000000 & IP <= 3758096383) %>%
+  mutate(country = IP_lookup(IP))
+Fraud2
+```
+
+###locations
+
+```{r}
+IP_plot(Fraud2$ip)
+```
+
+```{r}
+cluster <- cluster(8)
+Fraud3 <- Fraud2 %>% group_by(country) %>% partition(cluster) 
+```
+
+
+```{r}
+fraud3 <- ip2location(Fraud2$ip, "IP2LOCATION-LITE-DB11.CSV/IP2LOCATION-LITE-DB11.CSV", fields = c("city", "lat", "long"), use_memory = T)
+fraud3
+```
+
+```{r}
+map <- ggplot(fraud3) +
+  borders("world", colour="gray50", fill="gray50") +
+  geom_point(aes(x=long, y=lat) ,color="blue", size=3) 
+map
+```
+
+###Timezone
+
+```{r}
+tz_lookup_coords(lat = fraud3$lat, lon = fraud3$long, method = "fast", warn = TRUE)
+```
+
