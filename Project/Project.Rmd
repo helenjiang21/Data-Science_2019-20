@@ -1,0 +1,51 @@
+---
+title: "Project"
+output: 
+  html_document:
+    keep_md: TRUE
+    toc: TRUE
+    toc_float: TRUE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(readr)
+library(ggridges)
+```
+
+##Import
+
+```{r}
+data <- read.csv("GitHub/DS_CLASS_2019-20_Helen/suicide.csv")
+```
+
+```{r}
+data
+```
+
+```{r}
+summary(data)
+```
+
+##Start from USA
+
+```{r}
+usa <- filter(data, X...country == "United States") %>%
+  select("year":"generation")
+usa
+```
+
+```{r}
+usa_year <- usa %>%
+  select("year":"suicides.100k.pop", "HDI.for.year":"generation") %>%
+  group_by(year, sex) %>%
+  summarize(rate = (sum(suicides_no)/sum(population)) * 100000)
+usa_year
+```
+
+```{r}
+ggplot(usa_year) +
+  geom_histogram(aes(year, rate, fill = generation), position = "fill", stat = "identity")
+```
+
