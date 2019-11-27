@@ -17,10 +17,10 @@ library(ggridges)
 ##Import
 
 ```{r}
-data <- read.csv("GitHub/DS_CLASS_2019-20_Helen/suicide.csv")
+data <- read.csv("suicide.csv")
 ```
 
-```{r}
+```{r, include=FALSE}
 data
 ```
 
@@ -28,24 +28,151 @@ data
 summary(data)
 ```
 
-##Start from USA
+##overview
+
+###Total
+
+```{r}
+year <- data %>%
+  select("X...country":"suicides.100k.pop", "HDI.for.year":"generation") %>%
+  group_by(year) %>%
+  summarize(suicides_per_100k = (sum(suicides_no)/sum(population)) * 100000)
+year
+```
+
+```{r}
+ggplot(year) +
+  geom_line(aes(year, suicides_per_100k))
+```
+
+###Sex
+
+```{r}
+sex <- data %>%
+  select("year":"suicides.100k.pop", "HDI.for.year":"generation") %>%
+  group_by(year, sex) %>%
+  summarize(rate = (sum(suicides_no)/sum(population)) * 100000)
+sex
+```
+
+```{r}
+ggplot(sex) +
+  geom_line(aes(year, rate, color = sex))
+```
+
+###Age
+
+```{r}
+age <- data %>%
+  select("year":"suicides.100k.pop", "HDI.for.year":"generation") %>%
+  group_by(year, age) %>%
+  summarize(suicides_per_100k = (sum(suicides_no)/sum(population))*100000)
+age
+```
+
+```{r}
+ggplot(age) +
+  geom_line(aes(year, suicides_per_100k, color = age))
+```
+
+###Generation
+
+```{r}
+gen <- data %>%
+  select("year":"suicides.100k.pop", "HDI.for.year":"generation") %>%
+  group_by(year, generation) %>%
+  summarize(suicides_per_100k = (sum(suicides_no)/sum(population))*100000)
+gen
+```
+
+```{r}
+ggplot(gen) +
+  geom_line(aes(year, suicides_per_100k, color = generation))
+```
+
+##USA
 
 ```{r}
 usa <- filter(data, X...country == "United States") %>%
   select("year":"generation")
-usa
 ```
 
 ```{r}
 usa_year <- usa %>%
   select("year":"suicides.100k.pop", "HDI.for.year":"generation") %>%
-  group_by(year, sex) %>%
-  summarize(rate = (sum(suicides_no)/sum(population)) * 100000)
-usa_year
+  group_by(year) %>%
+  summarize(suicides_per_100k = (sum(suicides_no)/sum(population)) * 100000)
+year
 ```
 
 ```{r}
 ggplot(usa_year) +
-  geom_histogram(aes(year, rate, fill = generation), position = "fill", stat = "identity")
+  geom_line(aes(year, suicides_per_100k)) +
+  ylim(c(10, 15))
 ```
 
+###Sex
+
+```{r}
+usa_sex <- usa %>%
+  select("year":"suicides.100k.pop", "HDI.for.year":"generation") %>%
+  group_by(year, sex) %>%
+  summarize(rate = (sum(suicides_no)/sum(population)) * 100000)
+usa_sex
+```
+
+```{r}
+ggplot(usa_sex) +
+  geom_line(aes(year, rate, color = sex))
+```
+
+###Age
+
+```{r}
+usa_age <- usa %>%
+  select("year":"suicides.100k.pop", "HDI.for.year":"generation") %>%
+  group_by(year, age) %>%
+  summarize(suicides_per_100k = (sum(suicides_no)/sum(population))*100000)
+usa_age
+```
+
+```{r}
+ggplot(usa_age) +
+  geom_line(aes(year, suicides_per_100k, color = age))
+```
+
+###Generation
+
+```{r}
+usa_gen <- usa %>%
+  select("year":"suicides.100k.pop", "HDI.for.year":"generation") %>%
+  group_by(year, generation) %>%
+  summarize(suicides_per_100k = (sum(suicides_no)/sum(population))*100000)
+usa_gen
+```
+
+```{r}
+ggplot(usa_gen) +
+  geom_line(aes(year, suicides_per_100k, color = generation))
+```
+
+##Most
+
+###Which country
+
+```{r}
+country <- data %>%
+  select("X...country":"suicides.100k.pop", "HDI.for.year":"generation") %>%
+  group_by(X...country) %>%
+  summarize(suicides_per_100k = (sum(suicides_no)/sum(population))*100000) %>%
+  rename(country = X...country)
+country
+```
+
+```{r}
+arrange(country, desc(suicides_per_100k))
+```
+
+```{r}
+arrange(country, suicides_per_100k)
+```
