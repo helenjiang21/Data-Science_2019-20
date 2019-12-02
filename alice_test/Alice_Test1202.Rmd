@@ -1,0 +1,393 @@
+---
+title: "Alice Text Mining"
+output: 
+  html_document:
+    keep_md: TRUE
+    toc: TRUE
+    toc_float: TRUE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidytext)
+library(gutenbergr)
+library(stringr)
+library(tidyverse)
+library(syuzhet)
+library(wordcloud)
+library(igraph)
+library(dplyr)
+library(ggraph)
+library(topicmodels)
+library(twitteR)
+library(rtweet)
+library(lubridate)
+```
+
+##Overview
+
+Alice's Advantures in Wonderland, also often known as ALice in Wonderland, is one of the most popular English novel wrriting by Lewis Carroll in 1865. Its narrative, characters, and imagery have hugely influenced later literature and pop culture. In this project, I will try to identify common sentiments, motifs, word frequency, as well as in what ways this book is refered to on Twitter using R. 
+
+##Import&Tidy
+
+The book is found on gutenberg.org.
+
+```{r}
+alice <- gutenberg_download(c(11))
+```
+
+The text is unnested into words, dropping the punctuations and extremely common words such as "the." The chapter and line number are kept for later reference.
+
+```{r}
+alice_tidy <- alice %>%
+  mutate(linenumber = row_number(), chapter = cumsum(str_detect(text, regex("^chapter [\\divxlc]", ignore_case = T)))) %>%
+  unnest_tokens(word, text) %>%
+  anti_join(stop_words)
+alice_tidy
+```
+
+##Word frequencies
+
+```{r}
+alice_count <- alice_tidy %>%
+  count(word, sort = T) 
+filter(alice_count, n > 45)
+```
+
+The most common word is unsurprisingly "Alice," which appears more than 300 times than other most frequent words such as "time", "queen", etc. Interestingly, most of these words are characters: alice, queen, king, turtle, gryphon, hatter, and rabbit. The only verb among these words are "mock," which demonstrates the tone of this book.
+However, the count of the plural form of the words are not added to the count of the singular form.
+
+###Wordcloud
+
+A wordcloud without Alice is generated.
+```{r}
+alice_tidy %>%
+  count(word) %>%
+  filter(word != "alice") %>%
+  with(wordcloud(word, n, max.words = 100, scale=c(2, 0.1), colors= c(1:4, 6)))
+```
+
+
+##Sentiment
+
+###Sentiment overview
+
+I analyze the most common type of sentiment occur in the entire book using NCR lexicon which maps a word with one of the eight types of sentiment.
+
+```{r}
+sentiment <- alice_tidy %>%
+  inner_join(get_sentiments("nrc")) %>%
+  count(sentiment, sort = T) 
+sentiment
+```
+We can see that overall there is more words with positive sentiments. Note that fear ranked quite high here.
+
+###Sentiment trajectory
+
+Here I use the Bing lexicon to generate a sentiment score for each chapter. I count the number of words with positive and negative connotation and subtract the number of negative words from the number of positive words.
+
+```{r}
+alice_sentiment <- alice_tidy %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(chapter, sentiment) %>%
+  spread(sentiment, n, fill = 0) %>%
+  mutate(sentiment = positive - negative, chapter = as.factor(chapter))
+alice_sentiment
+```
+
+```{r}
+ggplot(alice_sentiment) +
+  geom_col(aes(chapter, sentiment))
+```
+
+Interesting enough, all chapters have more negative words than positive words. If we break down the chapter into smaller sections of 30 lines:
+
+```{r}
+alice_sentiment1 <- alice_tidy %>%
+  inner_join(get_sentiments("bing")) %>%
+  group_by(chapter) %>%
+  count(index = linenumber %/% 30, sentiment) %>%
+  spread(sentiment, n, fill = 0) %>%
+  ungroup() %>%
+  mutate(sentiment = positive - negative, chapter = as.factor(chapter)) 
+alice_sentiment1
+alice_sentiment1 %>% 
+  ggplot() +
+  geom_col(aes(index, sentiment, fill = chapter), show.legend = T)
+```
+
+It's still mostly negative, despite in ~60 lines in chapter 11.
+
+##tf-idf
+
+tf-idf is a measure that can be used to analyze how important a word is to a document in a collection of documents.
+
+###Term frequency
+
+First I'll look at the term frequency (tf) of each chapter of this book. 
+```{r}
+alice_chapter <- alice %>%
+  mutate(linenumber = row_number(), chapter = cumsum(str_detect(text, regex("^chapter [\\divxlc]", ignore_case = T)))) %>%
+  unnest_tokens(word, text) %>% 
+  count(chapter, word, sort = TRUE) %>% 
+  ungroup()
+alice_chapter_total <- alice_chapter %>%
+  group_by(chapter) %>%
+  summarize(total = sum(n))
+```
+
+```{r}
+alice_chapter <- left_join(alice_chapter, alice_chapter_total) %>%
+  filter(chapter != 0) %>%
+  mutate(chapter = as.factor(chapter))
+alice_chapter
+```
+As expected, most of the top words are those in the `stop_words`.
+
+```{r}
+alice_chapter %>% 
+  ggplot() +
+  geom_histogram(aes(n/total, fill = chapter), show.legend = FALSE) + 
+  xlim(NA, 0.0009) +
+  facet_wrap(~chapter, ncol = 4, scales = "free_y")
+```
+Generally there are fewer words that appear frequenly. This follows the Zipf's Law, which states that the frequency that a word appears is inversely proportional to its rank.
+
+####Zipf's Law
+
+```{r}
+freq_by_rank <- alice_chapter %>%
+      group_by(chapter) %>%
+      mutate(rank = row_number(),
+             `term frequency` = n/total)
+```
+
+```{r}
+freq_by_rank %>%
+  ggplot(aes(rank, `term frequency`, color = chapter)) + 
+  geom_line(size = .9, alpha = 0.7, show.legend = FALSE) +
+  scale_x_log10() +
+  scale_y_log10()
+```
+We see that there's a lot of overlaps, which means the Zipf's law holds for all chapters.
+For further verification, its coefficient can also be calculated. The Zipf's law statrs that tf should be inversely proportional to the rank, with a slope closer to -1.
+
+```{r}
+rank_subset <- freq_by_rank %>%
+      filter(rank < 500,
+             rank > 10)
+lm(log10(`term frequency`) ~ log10(rank), data = rank_subset)
+```
+
+Here it equals -0.976, which verifies the Zipf's Law.
+
+###Bind tf-idf function
+
+Here we try to find the important words while giving less weight to commonly used words and bigger weight to rare words.
+
+```{r}
+alice_chapter <- alice_chapter %>%
+  bind_tf_idf(word, chapter, n) %>%
+  arrange(desc(tf_idf))
+alice_chapter
+```
+
+Here it gives mainly character names, which is indeed special and important.
+To visualize it:
+
+```{r}
+alice_chapter %>%
+  arrange(desc(tf_idf)) %>%
+  mutate(word = factor(word, levels = rev(unique(word)))) %>%
+  group_by(chapter) %>%
+  top_n(10) %>%
+  ungroup %>%
+  ggplot(aes(word, tf_idf, fill = chapter)) + 
+  geom_col(show.legend = FALSE) +
+  labs(x = NULL, y = "tf-idf") +
+  facet_wrap(~chapter, ncol = 4, scales = "free") + 
+  coord_flip()
+```
+(In chapter 4 it's not a character but the window that's )
+
+##Bigram 
+
+###Word pair frequency
+
+In the first section, I focus on the frequency of single words appeared in the book. Here, I will focus on the relationship between words, or exploring most common word pairs.
+
+```{r}
+alice_tidy1 <- alice %>%
+  mutate(linenumber = row_number(), chapter = cumsum(str_detect(text, regex("^chapter [\\divxlc]", ignore_case = T)))) %>%
+  unnest_tokens(bigram, text, token = "ngrams", n = 2) %>%
+  na.omit() 
+```
+```{r}
+alice_tidy2 <- alice_tidy1 %>%
+  separate(bigram, c("word1", "word2"), sep = " ") %>%
+  filter(!word1 %in% stop_words$word) %>%
+  filter(!word2 %in% stop_words$word)
+```
+(Filter out those with `stop_words`.)
+
+```{r}
+alice_tidy2 %>%
+  count(word1, word2, sort = T) %>%
+  filter(n > 5)
+```
+From this, the main discovery that "mock" does not mainly serve as a verb but rather the name of the character "the mock turtle." Only word pairs of character names or alice's actions occures more than 5 times throughout the book (except soo-oop).
+
+####what did Alice do the most?
+
+```{r}
+alice_tidy2 %>%
+  filter(word1 == "alice") %>%
+  count(word2, sort = T) %>%
+  filter(n > 1)
+```
+This maybe shows the author has somewhat diverse word choice.. and Alice "looked" and spoke (replied, ventured, called, remarked, whispered) a lot.
+
+###Word pair sentiment
+
+Here I analyze the sentiment of word pairs, specifically those start with a negation word such as "not", "no", "never", "without". These negation reverse the sentiment of the word pair, which is overlooked in single-word sentiment analysis. The sentiment is scored using Afinn lexicon.
+
+```{r}
+AFINN <- get_sentiments("afinn")
+negation_words <- c("not", "no", "never", "without")
+```
+
+```{r}
+alice_neg <- alice_tidy1 %>%
+  separate(bigram, c("word1", "word2"), sep = " ") %>% 
+  filter(word1 %in% negation_words) %>% 
+  inner_join(AFINN, by = c(word2 = "word")) %>% 
+  count(word1, word2, value, sort = TRUE) %>% 
+  ungroup() 
+alice_neg
+```
+
+```{r}
+alice_neg %>%
+  mutate(contribution = n * value) %>% 
+  arrange(desc(abs(contribution))) %>%
+  head(20) %>%
+  mutate(word2 = reorder(word2, contribution)) %>% 
+  ggplot(aes(word2, n * value, fill = n * value > 0)) +
+  geom_col(show.legend = FALSE) +
+  xlab("Words preceded by negation") +
+  ylab("Sentiment score * number of occurrences") + 
+  coord_flip()
+```
+From the chart we can see that the number of words influenced by negation is relatively few (<5 besides "like"), which means the result from the sentiment section is still credible.
+
+###Bigram Visualization
+
+Here a bigram graph is visualized for discovering the relationships between words.
+
+```{r}
+bigram_graph <- alice_tidy2 %>%
+  count(word1, word2, sort = T) %>%
+  filter(n > 2) %>%
+  graph_from_data_frame()
+```
+
+```{r}
+set.seed(2016)
+a <- grid::arrow(type = "closed", length = unit(.15, "inches"))
+
+ggraph(bigram_graph, layout = "fr") +
+  geom_edge_link(aes(edge_alpha = n), show.legend = FALSE, arrow = a, end_cap = circle(.07, 'inches')) +
+  geom_node_point(color = "lightblue", size = 2) +
+  geom_node_text(aes(label = name), vjust = 1, hjust = 1) +
+  theme_void()
+```
+
+It seems that "alice" is a significant hub, while "rabbit" is from a smaller one.
+
+##Twitter
+
+Here I'm going to connect to Twitter and see:
+1. when do people refer to this book?
+2. what personages are usually refered to?
+3. what is the sentiment when people refer to this book?
+
+###Import&Tidy
+
+```{r, include=FALSE}
+consumer_key <- "IyMzpjX56EAVx3O2t9ffItOYh"
+consumer_secret <- "FyqmHnM12Cvdi8c2dbuptJUllahzg0A4OQMiYhECslE1yG3CNS"
+access_token <- "1199509700955508736-tgqNoRsKxqw3UMxoB5tOr3XRA4LVpA"
+access_secret <- "64ZOMQlRlCZ4I9DgkjRB1R9Zj96CotexQ0VnrfIWSIZMS"
+
+setup_twitter_oauth(consumer_key, consumer_secret, access_token, access_secret)
+```
+
+```{r}
+alice_tweets <- searchTwitter("alice in wonderland", n=8000, lang="en", since="2014-01-01", resultType= "mixed", retryOnRateLimit=1e3)
+
+df <- do.call("rbind", lapply(alice_tweets, as.data.frame))
+write.csv(df,file="aliceTweets.csv")
+```
+
+```{r}
+replace_reg1 <- "https://t.co/[A-Za-z\\d]+|"
+replace_reg2 <- "http://[A-Za-z\\d]+|&amp;|&lt;|&gt;|RT|https"
+replace_reg <- paste0(replace_reg1, replace_reg2)
+unnest_reg <- "([^A-Za-z_\\d#@']|'(?![A-Za-z_\\d#@]))"
+tweets <- df %>%
+  filter(!str_detect(text, "^RT")) %>%
+  mutate(text = str_replace_all(text, replace_reg, "")) %>%
+  unnest_tokens(word, text, token = "regex", pattern = unnest_reg) %>%
+  filter(!word %in% stop_words$word, str_detect(word, "[a-z]"))
+```
+
+###Time of tweets
+
+```{r}
+tweets %>%
+  mutate(timestamp = ymd_hms(created)) %>%
+  ggplot(aes(timestamp)) + 
+  geom_histogram(position = "identity", bins = 44, show.legend = FALSE) 
+```
+There're quite a lot of posts about alice in wonderland each day; in total there are more around 8000 in the past 110 hrs. Here the tweets are allocated into bin of 2.5hrs. Most tweets appeared in the evening.
+
+###Word frequency
+
+```{r}
+frequency <- tweets %>% 
+  select(id, created, screenName, word) %>%
+  count(word, sort = TRUE) %>%
+  filter(word != c("alice", "wonderland")) 
+frequency %>%
+  filter(n >100)
+```
+Without doubt the word "alice" and "wonderland" appear the most since they're parts of the searching string. 
+The next most is "Lewis", which probably refers to the name of the author; "adventures" is part of the original book name; "rabbit" probably is the most popular character on twitter; "book" and "disney" suggest two topics of many tweets: the original book and the disney movie adoption. In fact, "watch" and "watching" appear quite often, which means "alice in wonderland" is used more when discussing the movie. 
+"mad" and "love" are words with sentiments, so next we're going to explore the sentiments of these tweets.
+
+###Sentiment
+
+```{r}
+tweet_sentiment <- tweets %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(id, sentiment) %>%
+  spread(sentiment, n, fill = 0) %>%
+  mutate(sentiment = positive - negative, id = as.factor(id)) %>%
+  arrange(desc(sentiment))
+summary(tweet_sentiment)
+```
+The range of the sentiment of each post is from -5 to 4.
+
+```{r}
+ggplot(tweet_sentiment) +
+  geom_bar(aes(as.factor(sentiment)))
+```
+
+```{r}
+tweet_sentiment %>%
+  mutate(sen = ifelse(sentiment>0, "positive", ifelse(sentiment<0, "negative", "neutral"))) %>%
+  count(sen) %>%
+  ggplot(aes(sen, n)) +
+  geom_col()
+```
+Overall there is more tweets with negative sentiments than tweets with postive or neutral sentiments.
