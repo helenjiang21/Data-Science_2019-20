@@ -1,0 +1,347 @@
+---
+title: "HW020820"
+output: 
+  html_document:
+    keep_md: TRUE
+    toc: TRUE
+    toc_float: TRUE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(MASS)
+library(ISLR)
+library(ggplot2)
+library(dplyr)
+```
+
+##Chapter 3
+
+###Conceptual
+
+####Q1
+
+The advertising budgets of `TV`, `radio`, and `newspaper` don't have an influence on `sales`. The p-values for `TV` and `radio` are significant, while that for `newspaper` is not, meaning we can reject null hypothesis for `TV` and `radio`. So `TV` and `radio` budgets have a significant impact on `sales`.
+
+####Q2
+
+KNN classifier: qualitative response; KNN regression: quantitative response.
+
+####Q3
+
+`y=50+20GPA+0.07IQ+35Gender+0.01GPA*IQ-10GPA*Gender`
+
+a) iii is correct
+b) `50+20*4+0.07*110+35+0.01*110*4.0=137.1` ==> $137100
+c) false. To see if there is an interaction we need to check the p-value
+
+####Q4
+
+a) Because the actual relationship is linear, the linear regression might have a lower RSS compared to the cubic regression.
+b) Cubic regression might have a higher RSS because overfitting leads to more errors.
+c) Cubic regression might have a lower RSS because it is more flexible.
+d) we don't know
+
+####Q5
+
+`a_i=(x_ix_j)/(\sum x^2)`
+
+####Q6
+
+`y=b0+b1x`
+`y=b0+b1x_bar=(y_bar-b1*x_bar)+b1*x_bar=y_bar`
+
+####Q7
+
+Substitute the definition of RSS and TSS into the expression of R^2 (R^2=1-RSS/TSS), then ultimately find that `R^2=(\sum xi^2*yi^2)/((\sum xj^2)(\sum yj^2))=CoR(X, Y)^2`
+
+###Applied
+
+####Q8
+
+```{r}
+mpg_power <- lm(mpg~horsepower, Auto)
+summary(mpg_power)
+```
+
+i) yes, F-statistic is much larger than 1 and p-value is very small
+ii) according to the R^2 value, it means aroung 60% of the variation in mpg can be explained by variation in the horsepower.
+iii) the coefficient is -0.1578, so it's negative.
+iv) 
+```{r}
+predict(mpg_power, data.frame(horsepower = 98), interval = "confidence")
+```
+
+```{r}
+predict(mpg_power, data.frame(horsepower = 98), interval = "prediction")
+```
+
+b)
+```{r}
+plot(Auto$horsepower, Auto$mpg)
+abline(mpg_power, col = "red")
+```
+
+c)
+```{r}
+plot(mpg_power)
+```
+
+The residuals vs. fitted plot means the relationship is non-linear; residuals vs. leverage implies a few outliers (|y|>2) and some high leverage points.
+
+####Q9
+
+```{r}
+pairs(Auto)
+```
+
+b) 
+```{r}
+glimpse(Auto)
+```
+
+```{r}
+cor(Auto[-9])
+```
+
+c)
+```{r}
+fit_all <- lm(mpg~ .-name, Auto)
+summary(fit_all)
+```
+i) yes, the F-statistic is far larger than 7 and p-value is very small. 
+ii) displacemnet, weight, year, and origin
+iii) an increase of 1 year correspond to 0.751 of increase in mpg. cars are getting more and more efficient very year.
+
+d) 
+```{r}
+plot(fit_all)
+```
+A mild non-linearity, some outliers, and one high leverage point (14). 
+
+e)
+```{r}
+inter <- lm(mpg~cylinders*horsepower, Auto)
+summary(inter)
+```
+yes, small p-value.
+
+f)
+```{r}
+plot(log(Auto$horsepower), Auto$mpg)
+plot(sqrt(Auto$horsepower), Auto$mpg)
+plot((Auto$horsepower)^2, Auto$mpg)
+```
+
+```{r}
+x <- lm(mpg~log(acceleration), Auto)
+summary(x)
+```
+
+```{r}
+y <- lm(mpg~sqrt(acceleration), Auto)
+summary(y)
+```
+
+```{r}
+z <- lm(mpg~acceleration^2, Auto)
+summary(z)
+```
+
+####Q10
+
+```{r}
+seats <- lm(Sales~ Price + Urban + US, Carseats)
+summary(seats)
+```
+
+b)
+The average effect of a price increase of 1 dollar is a decrease of 0.054459 unit in sales while all other predictors remaining fixed.
+On average, the unit sales in urban location are 21.9161508 units less than in rural location all other predictors remaining fixed.
+On average the unit sales in a US store are 1200.5726978 units more than in a non US store all other predictors remaining fixed.
+
+c) Sales=13.0434689+(???0.0544588)??Price+(???0.0219162)??Urban+(1.2005727)??US+??
+d) Price and US
+e) 
+```{r}
+priceus <- lm(Sales ~ Price + US, data = Carseats)
+summary(priceus)
+```
+f) R62 of the smaller model is a bit better than for the bigger one.
+g)
+```{r}
+confint(priceus)
+```
+h)
+```{r}
+plot(priceus)
+```
+
+####Q11
+
+```{r}
+set.seed(1)
+x <- rnorm(100)
+y <- 2 * x + rnorm(100)
+```
+ 
+```{r}
+fit <- lm(y ~ x + 0)
+summary(fit)
+```
+we have a value of 1.9938761 for ???? , a value of 0.1064767 for the standard error, a value of 18.7259319 for the t-statistic and a value of 2.642196910^{-34} for the p-value. The small p-value allows us to reject H0.
+
+b)
+```{r}
+fit1 <- lm(x ~ y + 0)
+summary(fit1)
+```
+we have a value of 0.3911145 for ???? , a value of 0.0208863 for the standard error, a value of 18.7259319 for the t-statistic and a value of 2.642196910^{-34} for the p-value. The small p-value allows us to reject H0.
+
+c) We obtain the same value for the t-statistic and consequently the same value for the corresponding p-value. ?? values are reciprocal of each other.
+
+d) 
+```{r}
+n <- length(x)
+t <- sqrt(n - 1)*(x %*% y)/sqrt(sum(x^2) * sum(y^2) - (x %*% y)^2)
+as.numeric(t)
+```
+
+e)
+The t-statistics for the regression of y onto x is the same as that of x onto y.
+
+f)
+```{r}
+fit2 <- lm(x ~ y)
+summary(fit2)
+```
+the t-value stays the same with or without intercept.
+
+####Q12
+
+a) `beta = \sum(xiyi)/\sum(xi^2), beta' = \sum(xiyi)/\sum(yi^2)`
+when sum of xi^2 equals the sum of yi^2.
+b) 
+```{r}
+set.seed(1)
+x <- 1:100
+sum(x^2)
+y <- 2 * x + rnorm(100, sd = 0.1)
+sum(y^2)
+```
+
+```{r}
+fit.Y <- lm(y ~ x + 0)
+fit.X <- lm(x ~ y + 0)
+summary(fit.Y)
+summary(fit.X)
+```
+
+####Q13
+
+a)
+```{r}
+set.seed(3)
+x <- rnorm(100)
+eps <- rnorm(100, sd = sqrt(0.25))
+```
+c) beta0 is -1, beta1 is 0.5
+```{r}
+y <- -1 + 0.5 * x + eps
+length(y)
+```
+d)
+```{r}
+plot(x, y)
+```
+
+```{r}
+fit3 <- lm(y ~ x)
+summary(fit3)
+```
+Large F-statistic --> reject H0.
+f)
+```{r}
+plot(x, y)
+abline(fit3, col = "red")
+abline(-1, 0.5, col = "blue")
+legend("topleft", c("Least square", "Regression"), col = c("red", "blue"), lty = c(1, 1))
+```
+g) 
+```{r}
+fit4 <- lm(y ~ x + I(x^2))
+summary(fit4)
+```
+the p value for x62 is large, so not significant.
+h) less noise
+```{r}
+set.seed(1)
+eps <- rnorm(100, sd = 0.125)
+x <- rnorm(100)
+y <- -1 + 0.5 * x + eps
+plot(x, y)
+fit5 <- lm(y ~ x)
+summary(fit5)
+abline(fit5, col = "red")
+abline(-1, 0.5, col = "blue")
+legend("topleft", c("Least square", "Regression"), col = c("red", "blue"), lty = c(1, 1))
+```
+
+i)
+```{r}
+set.seed(1)
+eps <- rnorm(100, sd = 0.5)
+x <- rnorm(100)
+y <- -1 + 0.5 * x + eps
+plot(x, y)
+fit6 <- lm(y ~ x)
+summary(fit6)
+abline(fit6, col = "red")
+abline(-1, 0.5, col = "blue")
+legend("topleft", c("Least square", "Regression"), col = c("red", "blue"), lty = c(1, 1))
+```
+
+j)
+```{r}
+confint(fit3)
+confint(fit5)
+confint(fit6)
+```
+
+more noise --> bigger interval
+
+####Q14
+
+```{r}
+set.seed(1)
+x1 <- runif(100)
+x2 <- 0.5 * x1 + rnorm(100)/10
+y <- 2 + 2 * x1 + 0.3 * x2 + rnorm(100)
+```
+
+correlation between x1 and x2:
+```{r}
+cor(x1, x2)
+plot(x1, x2)
+```
+
+```{r}
+collinear <- lm(y ~ x1 + x2)
+summary(collinear)
+```
+
+predicted beta0, beta1 and beta2 are respectively 2.1305, 1.4396 and 1.0097, compared to 2, 2, 0.3.
+The H0 for beta1 can be rejected since its p value is smaller than 0.05.
+
+####Q15
+
+```{r}
+attach(Boston)
+fit.all <- lm(crim ~ ., data = Boston)
+summary(fit.all)
+```
+
+```{r}
+cor(Boston[-c(1, 4)])
+```
+
