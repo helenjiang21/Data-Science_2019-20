@@ -1,0 +1,386 @@
+---
+title: "HW202008_Ch4"
+output: 
+  html_document:
+    keep_md: TRUE
+    toc: TRUE
+    toc_float: TRUE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(MASS)
+library(class)
+library(ISLR)
+library(dplyr)
+```
+
+## Chapter 4 Applied
+
+###Q10
+
+```{r}
+attach(Weekly)
+glimpse(Weekly)
+```
+
+####a)
+
+```{r}
+cor(Weekly[, -9])
+pairs(Weekly)
+```
+Only the correlation between year and volume is quite significant. Volume increases over time.
+```{r}
+plot(Year, Volume)
+```
+
+```{r}
+plot(Volume)
+```
+
+####b)
+
+```{r}
+fit.glm <- glm(Direction ~ Lag1 + Lag2 + Lag3 + Lag4 + Lag5 + Volume, data = Weekly, family = binomial)
+summary(fit.glm)
+```
+
+####c)
+
+```{r}
+probs <- predict(fit.glm, type = "response")
+pred.glm <- rep("Down", length(probs))
+pred.glm[probs > 0.5] <- "Up"
+table(pred.glm, Direction)
+```
+
+```{r}
+right = (54+557)/(54+48+430+557)
+right
+```
+
+####d) logistic regression
+
+```{r}
+train <- (Year < 2009)
+test <- Weekly[!train, ]
+test_direction <- Direction[!train]
+fit.glm2 <- glm(Direction ~ Lag2, data = Weekly, family = binomial, subset = train)
+summary(fit.glm2)
+```
+
+```{r}
+probs2 <- predict(fit.glm2, test, type = "response")
+pred.glm2 <- rep("Down", length(probs2))
+pred.glm2[probs2 > 0.5] <- "Up"
+table(pred.glm2, test_direction)
+```
+
+```{r}
+1-(9+56)/(9+5+34+56)
+```
+test error is 0.375
+
+####e) LDA
+
+```{r}
+fit.lda <- lda(Direction ~ Lag2, data = Weekly, subset = train)
+fit.lda
+```
+
+```{r}
+pred.lda <- predict(fit.lda, test)
+table(pred.lda$class, test_direction)
+```
+the same with logistic regression model.
+
+####f) QDA
+
+```{r}
+fit.qda <- qda(Direction ~ Lag2, data = Weekly, subset = train)
+fit.qda
+```
+
+```{r}
+pred.qda <- predict(fit.qda, test)
+table(pred.qda$class, test_direction)
+```
+Always predict Up.
+```{r}
+1-61/(43+61)
+```
+
+####g) KNN, K=1
+
+```{r}
+train.X <- as.matrix(Lag2[train])
+test.X <- as.matrix(Lag2[!train])
+train_direction <- Direction[train]
+set.seed(1)
+pred.knn <- knn(train.X, test.X, train_direction, k = 1)
+table(pred.knn, test_direction)
+```
+
+```{r}
+1-(21+31)/(21+30+22+31)
+```
+error rate 0.5
+
+####h) logistic = LDA > QDA > KNN
+
+###Q11
+
+```{r}
+attach(Auto)
+glimpse(Auto)
+```
+
+####a)
+
+```{r}
+mpg01 <- rep(0, length(mpg))
+mpg01[mpg > median(mpg)] <- 1
+Auto1 <- data.frame(Auto, mpg01)
+```
+
+```{r}
+cor(Auto1[, -9])
+```
+
+```{r}
+pairs(Auto1)
+```
+
+####b) Cylinders, weight, displacement, horsepower.
+
+####c)
+
+```{r}
+train <- (year %% 2 == 0)
+Auto.train <- Auto[train, ]
+Auto.test <- Auto[!train, ]
+mpg01.test <- mpg01[!train]
+```
+
+####d) lda
+
+```{r}
+fit.lda <- lda(mpg01 ~ cylinders + weight + displacement + horsepower, data = Auto, subset = train)
+fit.lda
+```
+
+```{r}
+pred.lda <- predict(fit.lda, Auto.test)
+table(pred.lda$class, mpg01.test)
+```
+
+```{r}
+mean(pred.lda$class != mpg01.test)
+```
+
+####e) qda
+
+```{r}
+fit.qda <- qda(mpg01 ~ cylinders + weight + displacement + horsepower, data = Auto, subset = train)
+fit.qda
+```
+
+```{r}
+pred.qda <- predict(fit.qda, Auto.test)
+table(pred.qda$class, mpg01.test)
+mean(pred.qda$class != mpg01.test)
+```
+
+####f) logistic
+
+```{r}
+fit.glm <- glm(mpg01 ~ cylinders + weight + displacement + horsepower, data = Auto, family = binomial, subset = train)
+summary(fit.glm)
+```
+
+```{r}
+probs <- predict(fit.glm, Auto.test, type = "response")
+pred.glm <- rep(0, length(probs))
+pred.glm[probs > 0.5] <- 1
+table(pred.glm, mpg01.test)
+mean(pred.glm != mpg01.test)
+```
+
+####g) KNN
+
+```{r}
+train.X <- cbind(cylinders, weight, displacement, horsepower)[train, ]
+test.X <- cbind(cylinders, weight, displacement, horsepower)[!train, ]
+train.mpg01 <- mpg01[train]
+```
+
+K=1
+```{r}
+set.seed(1)
+pred.knn <- knn(train.X, test.X, train.mpg01, k = 1)
+table(pred.knn, mpg01.test)
+mean(pred.knn != mpg01.test)
+```
+
+K=5
+```{r}
+set.seed(1)
+pred.knn5 <- knn(train.X, test.X, train.mpg01, k = 5)
+table(pred.knn5, mpg01.test)
+mean(pred.knn5 != mpg01.test)
+```
+
+K=10
+```{r}
+set.seed(1)
+pred.knn10 <- knn(train.X, test.X, train.mpg01, k = 10)
+table(pred.knn10, mpg01.test)
+mean(pred.knn10 != mpg01.test)
+```
+
+###Q12
+
+####a)
+
+```{r}
+power <- function(){
+  2^3
+}
+power()
+```
+
+####b)
+
+```{r}
+power2 <- function(x, a){
+  x^a
+}
+power2(2, 3)
+```
+
+####c)
+
+```{r}
+power2(10, 3)
+power2(8, 17)
+power2(131, 3)
+```
+
+####d)
+
+```{r}
+power3 <- function(x , a) {
+    result <- x^a
+    return(result)
+}
+power3(2, 3)
+```
+
+####e)
+
+```{r}
+x <- 1:10
+plot(x, power3(x, 3))
+plot(x, power3(x, 3), log = "y")
+```
+
+####f)
+
+```{r}
+plotpower <- function(x, a){
+  plot(x, power3(x, a))
+}
+plotpower(1:10, 3)
+```
+
+###Q13
+
+####a)
+
+```{r}
+attach(Boston)
+crim01 <- rep(0, length(crim))
+crim01[crim > median(crim)] <- 1
+boston <- data.frame(Boston, crim01)
+```
+
+train and test
+```{r}
+train <- 1:(length(crim)*2/3)
+test <- (length(crim)*2/3 + 1):length(crim)
+boston.train <- boston[train, ]
+boston.test <- boston[test, ]
+crim01.test <- crim01[test]
+```
+
+####logistic
+
+```{r}
+fit.glm <- glm(crim01 ~ . - crim01 - crim, data = Boston, subset = train)
+summary(fit.glm)
+```
+
+```{r}
+fit.glm1 <- glm(crim01 ~ nox + age + rad + ptratio, data = Boston, subset = train)
+summary(fit.glm1)
+```
+
+```{r}
+probs <- predict(fit.glm1, boston.test, "response")
+pred.glm1 <- rep(0, length(probs))
+pred.glm1[probs > 0.5] <- 1
+table(pred.glm1, crim01.test)
+```
+
+####lda
+
+```{r}
+fit.lda1 <- lda(crim01 ~ nox + age + rad + ptratio, data = boston.train)
+pred.lda1 <- predict(fit.lda1, boston.test)
+table(pred.lda1$class, crim01.test)
+```
+
+####qda
+
+```{r}
+fit.qda1 <- qda(crim01 ~ nox + age + rad + ptratio, data = boston.train)
+pred.qda1 <- predict(fit.qda1, boston.test)
+table(pred.qda1$class, crim01.test)
+```
+
+####KNN
+
+```{r}
+train.c <- cbind(nox, age, rad, ptratio)[train, ]
+test.c <- cbind(nox, age, rad, ptratio)[test, ]
+train.crim01 <- crim01[train]
+```
+
+k=1
+```{r}
+set.seed(121)
+pred.knn1 <- knn(train.c, test.c, train.crim01, k = 1)
+table(pred.knn1, crim01.test)
+```
+k=9
+```{r}
+pred.knn9 <- knn(train.c, test.c, train.crim01, k = 9)
+table(pred.knn9, crim01.test)
+```
+
+k=15
+```{r}
+pred.knn15 <- knn(train.c, test.c, train.crim01, k = 15)
+table(pred.knn15, crim01.test)
+```
+
+####compare
+
+```{r}
+mean(pred.glm1 != crim01.test)
+mean(pred.lda1$class != crim01.test)
+mean(pred.qda1$class != crim01.test)
+mean(pred.knn9 != crim01.test)
+```
+
