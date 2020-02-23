@@ -1,0 +1,345 @@
+---
+title: "HW200215"
+output: 
+  html_document:
+    keep_md: TRUE
+    toc: TRUE
+    toc_float: TRUE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(MASS)
+library(class)
+library(ISLR)
+library(dplyr)
+library(boot)
+```
+
+## Chapter 5
+
+###Q2
+
+####g)
+
+```{r}
+x <- 1:100000
+plot(x, 1 - (1 - 1/x)^x)
+```
+
+####h)
+
+```{r}
+store <- rep(NA, 10000)
+for (i in 1:10000) {
+    store[i] <- sum(sample(1:100, rep = TRUE) == 4) >0
+}
+mean(store)
+```
+
+the limit of (1-x/n)^n = e^x. in this case it appoarches 1-1/e equals 0.6332
+
+###Q5
+
+####a) logistic regression
+
+```{r}
+attach(Default)
+fit_glm <- glm(default ~ income + balance, data = Default, family = "binomial")
+summary(fit_glm)
+```
+
+####b) validation set
+
+i) split into sets
+```{r}
+train1 <- sample(dim(Default)[1], dim(Default)[1] / 2)
+validation1 <- Default[-train1, ]
+```
+
+ii)regression
+```{r}
+fit_glm1 <- glm(default ~ income + balance, data = Default, subset = train1, family = "binomial")
+summary(fit_glm1)
+```
+
+iii) predict using validation
+```{r}
+probs1 <- predict(fit_glm1, validation1, type ="response")
+pred_glm1 <- rep("No", length(probs1))
+pred_glm1[probs1 > 0.5] <- "Yes"
+error1 <- mean(pred_glm1 != validation1$default)
+error1
+```
+
+####c) repeating b using different validation sets
+
+```{r}
+set.seed(2)
+train <- sample(dim(Default)[1], dim(Default)[1] / 2)
+validation <- Default[-train, ]
+fit_glm0 <- glm(default ~ income + balance, data = Default, subset = train, family = "binomial")
+probs <- predict(fit_glm0, validation, type ="response")
+pred_glm <- rep("No", length(probs))
+pred_glm[probs > 0.5] <- "Yes"
+error <- mean(pred_glm != validation$default)
+error
+```
+
+```{r}
+set.seed(3)
+train <- sample(dim(Default)[1], dim(Default)[1] / 2)
+validation <- Default[-train, ]
+fit_glm <- glm(default ~ income + balance, data = Default, subset = train, family = "binomial")
+probs <- predict(fit_glm, validation, type ="response")
+pred_glm <- rep("No", length(probs))
+pred_glm[probs > 0.5] <- "Yes"
+error <- mean(pred_glm != validation$default)
+error
+```
+
+####d) including student
+
+```{r}
+trains <- sample(dim(Default)[1], dim(Default)[1] / 2)
+validations <- Default[-trains, ]
+fit_glms <- glm(default ~ income + balance + student, data = Default, subset = train, family = "binomial")
+probs <- predict(fit_glms, validations, type ="response")
+pred_glms <- rep("No", length(probs))
+pred_glms[probs > 0.5] <- "Yes"
+errors <- mean(pred_glms != validation$default)
+errors
+```
+it increases the error rate.
+
+###Q6
+
+####a) logistic
+
+```{r}
+attach(Default)
+fit_glmb <- glm(default ~ income + balance, data = Default, family = "binomial")
+coef(summary(fit_glmb))
+```
+
+####b) bootstrap function
+
+```{r}
+boot.fn <- function(data, index) {
+  fit <- glm(default ~ income + balance, data = data, family = "binomial", subset = index)
+  return(coef(fit))
+}
+```
+
+####c) perform
+
+```{r}
+boot(Default, boot.fn, 1000)
+```
+
+####d) comparison
+kinda similar
+
+###Q7
+
+####a) logistic
+
+```{r}
+attach(Weekly)
+fit_glmw <- glm(Direction ~ Lag1 + Lag2, data = Weekly, family = "binomial")
+summary(fit_glmw)
+```
+
+####b) all but not the first observation
+
+```{r}
+fit_glmw1 <- glm(Direction ~ Lag1 + Lag2, data = Weekly[-1, ], family = "binomial")
+summary(fit_glmw1)
+```
+
+####c) using b to predict the first
+
+```{r}
+predict(fit_glmw1, Weekly[1, ], type = "response") > 0.5
+Weekly[1,]
+```
+it predicts up, which is incorrect since the actual direction is down.
+
+####d) loocv loop
+
+```{r}
+errorw <- rep(0, dim(Weekly)[1])
+for (i in 1:dim(Weekly)[1]) {
+    fit_glmw <- glm(Direction ~ Lag1 + Lag2, data = Weekly[-i, ],  family = "binomial")
+    pred_up <- predict(fit_glmw, Weekly[i, ], type = "response") > 0.5
+    true_up <- Weekly[i, ]$Direction == "Up"
+    if (pred_up != true_up)
+        errorw[i] <- 1
+}
+```
+
+####e) error
+
+```{r}
+mean(errorw)
+```
+
+###Q8
+
+####a)
+
+```{r}
+set.seed(1)
+y <- rnorm(100)
+x <- rnorm(100)
+y <- x - 2 * x^2 + rnorm(100)
+```
+n is 100, p is 2. Y = X - X^2 + ??
+
+####b) plot
+
+```{r}
+plot(x, y)
+```
+looks like second degree polynomial.
+
+####c) LOOCV error
+
+i) first degree
+```{r}
+set.seed(1)
+Data <- data.frame(x, y)
+fit_glmp1 <- glm(y ~ x)
+cv.glm(Data, fit_glmp1)$delta[1]
+```
+
+ii) second degree
+```{r}
+fit_glmp2 <- glm(y ~ poly(x, 2))
+cv.glm(Data, fit_glmp2)$delta[1]
+```
+
+iii) third degree
+```{r}
+fit_glmp3 <- glm(y ~ poly(x, 3))
+cv.glm(Data, fit_glmp3)$delta[1]
+```
+
+iv) fourth
+```{r}
+fit_glmp4 <- glm(y ~ poly(x, 4))
+cv.glm(Data, fit_glmp4)$delta[1]
+```
+
+####d) repeat using another random seed
+
+```{r}
+set.seed(8)
+Data <- data.frame(x, y)
+fit_glmp1 <- glm(y ~ x)
+cv.glm(Data, fit_glmp1)$delta[1]
+
+fit_glmp2 <- glm(y ~ poly(x, 2))
+cv.glm(Data, fit_glmp2)$delta[1]
+
+fit_glmp3 <- glm(y ~ poly(x, 3))
+cv.glm(Data, fit_glmp3)$delta[1]
+
+fit_glmp4 <- glm(y ~ poly(x, 4))
+cv.glm(Data, fit_glmp4)$delta[1]
+```
+the errors are the same.
+
+####e) smallest error
+
+Quadratic fit has the smallest error, corresponding to the equation.
+
+####f) significance tests
+
+```{r}
+summary(fit_glmp1)
+summary(fit_glmp2)
+summary(fit_glmp3)
+summary(fit_glmp4)
+```
+
+the third and fourth degree of x are not significant.
+
+###Q9
+
+####a) computing ??^
+
+```{r}
+attach(Boston)
+u <- mean(medv)
+u
+```
+
+####b) standard error
+
+```{r}
+se <- sd(medv) / sqrt(dim(Boston)[1])
+se
+```
+
+####c) estimate se using bootstrap
+
+```{r}
+set.seed(1)
+boot_fn <- function(data, index) {
+    u <- mean(data[index])
+    return (u)
+}
+boot(medv, boot_fn, 1000)
+```
+
+se here is 0.4107, close to 0.4089 in b).
+
+####d) confidence interval
+
+```{r}
+CI <- c(22.53 - 2 * 0.4119, 22.53 + 2 * 0.4119)
+CI
+```
+
+
+```{r}
+t.test(medv)
+```
+(`confint()` only work for fitted model object)
+very close.
+
+####e) median
+
+```{r}
+med <- median(medv)
+med
+```
+
+####f) bootstrap on median for se
+
+```{r}
+boot.fn <- function(data, index) {
+    med <- median(data[index])
+    return (med)
+}
+boot(medv, boot.fn, 1000)
+```
+
+####g) ten precentile
+
+```{r}
+tentile <- quantile(medv, c(0.1))
+tentile
+```
+
+####h) se of tentile
+
+```{r}
+boot.fn <- function(data, index) {
+    tentile <- quantile(data[index], c(0.1))
+    return (tentile)
+}
+boot(medv, boot.fn, 1000)
+```
+very close again.
