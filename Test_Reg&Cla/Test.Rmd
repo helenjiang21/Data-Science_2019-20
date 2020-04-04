@@ -1,0 +1,315 @@
+---
+title: "Test"
+output: 
+  html_document:
+    keep_md: TRUE
+    toc: TRUE
+    toc_float: TRUE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(caret)
+library(class)
+library(dplyr)
+library(boot)
+library(tibble)
+library(caTools)
+library(e1071)
+library(readxl)
+library(ranger)
+library(ordinalForest)
+library(h2o)
+library(gbm)
+```
+
+## Dataset info
+
+This dataset contains data that describes 768 households using 10 variables, including area, orientation, height, and energy efficiency. The dataset can be found here: http://archive.ics.uci.edu/ml/datasets/Energy+efficiency# along with the description. Here we want to use other variables to predict the heating load, the quantity of heat per unit time that must be supplied to maintain the temperature in a building, by finding a regression model. 
+
+```{r}
+data <- read_xlsx("ENB2012_data.xlsx") %>%
+  na.omit()
+glimpse(data)
+```
+
+Firstly I rename the variables according to the description online
+
+```{r}
+data <- data %>%
+  rename(
+    Relative_Compactness = X1,
+    Surface_Area = X2,
+    Wall_Area = X3,
+    Roof_Area = X4,
+    Overall_Height = X5,
+    Orientation = X6,
+    Glazing_Area = X7,
+    Glazing_Area_Distribution = X8,
+    Heating_Load = Y1,
+    Cooling_Load = Y2
+  )
+```
+
+###Exploration
+
+```{r}
+pairs(data)
+```
+
+From the plots, we can see that relative compactness and surface area are somewhat correlated, while heating load and cooling load are highly correalted. 
+Meanwhile, although all the data are numerical, it appears for most of the variables (roof area, height, orientation, glazing area, glazing area distribution) have only limited values. 
+We will first see if considering this near-zero variance in pre-processing process is able to generate good regression fit. If not we can create dummy variables.
+
+##Regression model for heating load
+
+###Pre-processing
+ 
+It appears at first sight all variables are numerical. Let's try nzv first
+
+####near zero variance
+
+```{r}
+nzv <- nearZeroVar(data, saveMetrics= TRUE)
+nzv
+```
+
+There aren't any, interestingly.
+
+####dummy variables
+
+
+####correlated predictors
+
+According to our observation there are.
+
+```{r}
+correlation <- cor(data)
+summary(correlation[upper.tri(correlation)])
+```
+
+yes there are.
+
+```{r}
+high_cor <- findCorrelation(correlation, cutoff = .75)
+data1 <- data[,-high_cor]
+cor1 <- cor(data1)
+summary(cor1[upper.tri(cor1)])
+```
+
+```{r}
+data1
+```
+
+It removes surface area, roof area, overall height, and heating and cooling load. But since heating load is what we want to predict I will manually add that one back. (This also indicates that heating load might be highly correlated to few/one of the predictor.)
+
+```{r}
+heating = data$Heating_Load
+data2 <- cbind(data1, heating)
+```
+
+###Spliting into train and test
+
+Here we randomly sampled 2/3 of all data to put into the training set, and the rest into the test set.
+
+```{r}
+set.seed(15)
+in_train <- sample(dim(data2)[1], dim(data2)[1] *2 /3)
+train <- data2[in_train, ]
+test <- data2[-in_train, ]
+```
+
+And normalize it..
+
+```{r}
+provalue <- preProcess(train, method = c("center", "scale"))
+protrain <- predict(provalue, train)
+protest <- predict(provalue, test)
+```
+
+###Fitting linear model
+
+```{r}
+fit_control <- trainControl(method = "repeatedcv",
+                           number = 10,
+                           repeats = 10,
+                           classProbs = TRUE)
+```
+
+```{r}
+fit_lm <- lm(heating ~ ., data = protrain)
+summary(fit_lm)
+```
+
+Adjusted R-squared value is okay. And from the p-values, relative compactness, wall-area, and glazing area seemed to be significantly correlated to heating load, 
+which seems to make sense since wall area and percentage of window area are intuitively related to heat dispersion.
+According to google, relative compactness seems to evaluate the layout of a house. It seems to be the most influential predictor. 
+
+####Linear model w/o scaling data
+
+```{r}
+Fit_lm <- lm(heating ~ Relative_Compactness + Wall_Area + Glazing_Area, data = train)
+summary(Fit_lm)
+```
+
+Try this model with three predictors in the train set without scaling, it shows that 1 unit increase in relative compactness, wall area, and glazing area will result in 70.39, 0.143, and 21.670 units of increase in the heating load.
+
+####w/ cross-validation
+
+(The following includes cross validation.)
+
+```{r}
+set.seed(825)
+fit_lm1 <- train(heating ~ Relative_Compactness + Wall_Area + Glazing_Area, 
+                method = "lm",
+                data = protrain, 
+                trControl = fit_control)
+fit_lm1
+```
+
+####Testing
+
+```{r}
+pred1 <- predict(fit_lm1, protest)
+rmse1 <- sqrt(mean((protest$heating - pred1)^2))
+rmse1
+rmse1*sd(train$heating)
+```
+
+the error is 4.297 units of the heating load.
+
+###Linear regression w/ feature engineered
+
+Here I will introduce new features to be used to predict the heating load: volume of the house (surface area*overall height) and exposed area (roof area+wall area)
+
+```{r}
+data3 <- data %>%
+  mutate(Volume = Surface_Area*Overall_Height, Exposed_Area = Roof_Area + Wall_Area)
+```
+
+```{r}
+correlation1 <- cor(data)
+summary(correlation[upper.tri(correlation1)])
+```
+
+```{r}
+high_cor1 <- findCorrelation(correlation1, cutoff = .75)
+data4 <- data3[,-high_cor1]
+cor2 <- cor(data4)
+summary(cor1[upper.tri(cor2)])
+```
+
+```{r}
+data4 
+```
+
+```{r}
+data4 <- cbind(data4, heating)
+```
+
+```{r}
+set.seed(16)
+in_train1 <- sample(dim(data4)[1], dim(data4)[1] *2 /3)
+train1 <- data4[in_train1, ]
+test1 <- data4[-in_train1, ]
+
+provalue1 <- preProcess(train1, method = c("center", "scale"))
+protrain1 <- predict(provalue1, train1)
+protest1 <- predict(provalue1, test1)
+```
+
+```{r}
+fit_lm2 <- lm(heating ~ ., data = protrain1)
+summary(fit_lm2)
+```
+
+We can see that volume appears to be the most influential indicator, as well as glazing area. 
+Wall area appears to be somewhat significant whereas exposed area is not at all. So wall area matters more than roof area.
+
+##Classification
+
+As noticed in the previous sections (exploration), that x3-x8 only have a few values, so we can try classfication methods. 
+According to caret, tree-type model works with those variables.
+
+Starting again with original data
+
+```{r}
+data
+```
+
+From both visualization and correlation sections it appears that cooling load highly correlates with heating load (and they seem to evaluate very similar process) so I'm still going to remove this variable while keeping the others.
+
+```{r}
+Data <- select(data, -Cooling_Load)
+```
+
+preprocessing...
+
+```{r}
+set.seed(17)
+in_Train <- sample(dim(Data)[1], dim(Data)[1] *2 /3)
+Train <- Data[in_Train, ]
+Test <- Data[-in_Train, ]
+
+proValue <- preProcess(Train, method = c("center", "scale"))
+proTrain <- predict(proValue, Train)
+proTest <- predict(proValue, Test)
+```
+
+```{r}
+length(Data$Relative_Compactness)
+length(Data$Surface_Area)
+```
+
+
+```{r}
+gbmGrid <-  expand.grid(interaction.depth = c(1, 5, 9), 
+                        n.trees = (1:30)*50, 
+                        shrinkage = 0.1,
+                        n.minobsinnode = 20)
+                        
+nrow(gbmGrid)
+
+fitControl <- trainControl(method = "gbm")
+```
+
+
+```{r}
+glimpse(Data)
+```
+
+```{r}
+set.seed(825)
+proTrain1<-select(proTrain, -Relative_Compactness, -Surface_Area)
+# gbmFit2 <- train(heating ~ . , data = proTrain1, 
+#                  method = "gbm", 
+#                  tuneGrid = gbmGrid,
+#                  trControl = fitControl, 
+#                  na.action = na.omit)
+#  Error in model.frame.default(form = heating ~ ., data = proTrain1, na.action = na.omit) : 
+#  variable lengths differ (found for 'Wall_Area')
+```
+
+
+set.seed(122)
+gbm.fit <- gbm(
+  formula = heating ~ .,
+  distribution = gaussian,
+  data = proTrain,
+  n.trees = 10000,
+  interaction.depth = 1,
+  shrinkage = 0.001,
+  cv.folds = 5,
+  verbose = FALSE
+  )  
+
+
+
+set.seed(849)
+RF <- train(heating ~ ., data = proTrain, 
+                            method = "ordinalRF", 
+                            trControl = fitControl,  
+                            metric = "Kappa" 
+                            )
+
+
