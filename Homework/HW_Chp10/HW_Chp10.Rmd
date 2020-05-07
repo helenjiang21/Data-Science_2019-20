@@ -1,0 +1,147 @@
+---
+title: "HW_Chp10"
+output: 
+  html_document:
+    keep_md: TRUE
+    toc: TRUE
+    toc_float: TRUE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ISLR)
+```
+
+##Q7
+
+correlation-based distance and Euclidean distance as dissimilarity measures for hierarchical clustering. It turns out that these two measures are almost equivalent : if each observation has been centered to have mean zero and standard deviation one,
+
+```{r}
+set.seed(321)
+dsc <- scale(USArrests)
+d1 <- dist(dsc)^2
+d2 <- as.dist(1 - cor(t(dsc)))
+summary(d2 / d1)
+```
+
+##Q8
+
+###a. sdev --> PVE
+
+```{r}
+pr.out <- prcomp(USArrests, scale = TRUE)
+pr.var <- pr.out$sdev^2
+pve <- pr.var / sum(pr.var)
+pve
+```
+
+###b. directly
+
+```{r}
+loadings <- pr.out$rotation
+USArrests2 <- scale(USArrests)
+sumvar <- sum(apply(as.matrix(USArrests2)^2, 2, sum))
+apply((as.matrix(USArrests2) %*% loadings)^2, 2, sum) / sumvar
+```
+
+##Q9
+
+###a. hierarchical clustering with complete linkage and Euclidean distance
+
+```{r}
+set.seed(312)
+hc.complete <- hclust(dist(USArrests), method = "complete")
+plot(hc.complete)
+```
+
+###b. cut tree
+
+```{r}
+cutree(hc.complete, 3)
+```
+
+###c. clustering after scaling
+
+```{r}
+sd.data <- scale(USArrests)
+hc.complete.sd <- hclust(dist(sd.data), method = "complete")
+plot(hc.complete.sd)
+```
+
+###d. cut
+
+```{r}
+cutree(hc.complete.sd, 3)
+```
+
+```{r}
+table(cutree(hc.complete, 3), cutree(hc.complete.sd, 3))
+```
+
+scaling affects the clustering results.
+
+##Q10 * review this part
+
+###a. generate data
+
+```{r}
+set.seed(213)
+x <- matrix(rnorm(20 * 3 * 50, mean = 0, sd = 0.001), ncol = 50)
+x[1:20, 2] <- 1
+x[21:40, 7] <- 1
+x[21:40, 4] <- 2
+x[41:60, 10] <- 2
+true.labels <- c(rep(1, 20), rep(2, 20), rep(3, 20))
+```
+
+###b. PCA
+
+```{r}
+pr.out <- prcomp(x)
+plot(pr.out$x[, 1:2], col = 1:3, xlab = "Z1", ylab = "Z2", pch = 19)
+```
+
+###c. K-means, K=3
+
+```{r}
+km.out <- kmeans(x, 3, nstart = 20)
+table(true.labels, km.out$cluster)
+```
+
+Yes.
+
+###d. K-means, K=2
+
+```{r}
+km.out <- kmeans(x, 2, nstart = 20)
+table(true.labels, km.out$cluster)
+```
+
+two clusters are combined into one.
+
+###e. K=4
+
+```{r}
+km.out <- kmeans(x, 4, nstart = 20)
+table(true.labels, km.out$cluster)
+```
+
+One cluster is broken into two.
+
+###f. K-means on the first two clusters
+
+```{r}
+km.out <- kmeans(pr.out$x[, 1:2], 3, nstart = 20)
+table(true.labels, km.out$cluster)
+```
+
+it works.
+
+###g. K-means after scaling
+
+```{r}
+km.out <- kmeans(scale(x), 3, nstart = 20)
+table(true.labels, km.out$cluster)
+```
+
+doesn't work. Scaling affects distances.
