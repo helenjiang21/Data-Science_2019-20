@@ -1,0 +1,374 @@
+---
+title: "HW Chapter 8"
+output: 
+  html_document:
+    keep_md: TRUE
+    toc: TRUE
+    toc_float: TRUE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(MASS)
+library(randomForest)
+library(ISLR)
+library(tree)
+library(gbm)
+library(glmnet)
+```
+
+##Q7
+
+###a. 
+
+```{r}
+set.seed(100)
+train <- sample(1:dim(Boston), dim(Boston) / 2)
+Boston.train <- Boston[train, -14]
+Boston.test <- Boston[-train, -14]
+Y.train <- Boston[train, 14]
+Y.test <- Boston[-train, 14]
+```
+
+```{r}
+rf_boston_all <- randomForest(Boston.train, y = Y.train, xtest = Boston.test, ytest = Y.test, mtry = ncol(Boston) - 1, ntree = 500)
+rf_boston_half <- randomForest(Boston.train, y = Y.train, xtest = Boston.test, ytest = Y.test, mtry = (ncol(Boston) - 1) / 2, ntree = 500)
+rf_boston_sqrt <- randomForest(Boston.train, y = Y.train, xtest = Boston.test, ytest = Y.test, mtry = sqrt(ncol(Boston) - 1), ntree = 500)
+```
+
+```{r}
+plot(1:500, rf_boston_all$test$mse, col = "green", type = "l", xlab = "Number of Trees", ylab = "Test MSE", ylim = c(10, 19)) 
+lines(1:500, rf_boston_half$test$mse, col = "red", type = "l") 
+lines(1:500, rf_boston_sqrt$test$mse, col = "blue", type = "l") 
+legend("topright", c("m = p", "m = p/2", "m = sqrt(p)"), col = c("green", "red", "blue"), cex = 1, lty = 1)
+```
+
+The test mse decreases as the # of trees increases. MSE also decreases as the # of predictors used. 
+
+##Q8
+
+###a. splitting
+
+```{r}
+set.seed(101)
+train <- sample(1:nrow(Carseats), nrow(Carseats) / 2)
+Carseats.train <- Carseats[train, ]
+Carseats.test <- Carseats[-train, ]
+```
+
+###b. regression tree
+
+```{r}
+tree.carseats <- tree(Sales ~ ., data = Carseats.train)
+summary(tree.carseats)
+plot(tree.carseats)
+text(tree.carseats, pretty = 0)
+```
+
+```{r}
+yhat <- predict(tree.carseats, newdata = Carseats.test)
+mean((yhat - Carseats.test$Sales)^2)
+```
+
+the test mse is 4.27.
+
+###c. cross-validation
+
+```{r}
+set.seed(102)
+cv.carseats <- cv.tree(tree.carseats, FUN=prune.tree)
+cv.carseats
+```
+```{r}
+tree.min <- 16- which.min(cv.carseats$dev)
+plot(cv.carseats$size, cv.carseats$dev, type = "b")
+points(tree.min, cv.carseats$dev[tree.min], col = "red", cex = 2, pch = 20)
+```
+
+
+```{r}
+prune.carseats <- prune.tree(tree.carseats, best = 9)
+plot(prune.carseats)
+text(prune.carseats, pretty = 0)
+```
+
+```{r}
+yhat <- predict(prune.carseats, newdata = Carseats.test)
+mean((yhat - Carseats.test$Sales)^2)
+```
+
+The MSE is 4.72
+
+###d. bagging
+
+```{r}
+bag.carseats <- randomForest(Sales ~ ., data = Carseats.train, mtry = 10, ntree = 500, importance = TRUE)
+yhat.bag <- predict(bag.carseats, newdata = Carseats.test)
+mean((yhat.bag - Carseats.test$Sales)^2)
+```
+
+Bagging decreases the MSE quite a lot.
+
+```{r}
+importance(bag.carseats)
+```
+
+ShelveLoc is the most important one.
+
+###e. random forest
+
+```{r}
+rf.carseats <- randomForest(Sales ~ ., data = Carseats.train, mtry = sqrt(ncol(Carseats)), ntree = 500, importance = TRUE)
+yhat.rf <- predict(rf.carseats, newdata = Carseats.test)
+mean((yhat.rf - Carseats.test$Sales)^2)
+importance(rf.carseats)
+```
+
+In this case the test MSE is 3.23 while the ShelveLoc is still the most important predictor
+
+##Q9
+
+(ISLR does have many random datasets..
+
+```{r}
+head(OJ)
+```
+
+###a. splitting
+
+```{r}
+set.seed(102)
+train <- sample(1:nrow(OJ), 800)
+OJ.train <- OJ[train, ]
+OJ.test <- OJ[-train, ]
+```
+
+###b. tree
+```{r}
+tree.oj <- tree(Purchase ~., data = OJ.train)
+summary(tree.oj)
+```
+
+training error is 0.7356; the number of terminal nodes is 9
+
+###c. 
+
+```{r}
+tree.oj
+```
+
+num. 4 is a terminal node, whose splitting criterion is 0.482304. 162 observations are in this node; their deviance is 117.10. The overall prediction where is MM, whil 11.7% of observation is CH.
+
+###d. plotting
+
+```{r}
+plot(tree.oj)
+text(tree.oj)
+```
+
+###e. predict
+
+```{r}
+tree.pred <- predict(tree.oj, OJ.test, type = "class")
+table(tree.pred, OJ.test$Purchase)
+```
+
+```{r}
+1 - (148+73)/(148+30+19+73)
+```
+
+The test error rate is 0.182
+
+###f. cross-validation
+
+```{r}
+cv.oj <- cv.tree(tree.oj, FUN = prune.misclass)
+cv.oj
+```
+
+###g. plot
+
+```{r}
+set.seed(103)
+plot(cv.oj$size, cv.oj$dev, type = "b")
+tree.min <- which.min(cv.oj$dev)
+points(cv.oj$size[tree.min], cv.oj$dev[tree.min], col = "red", cex = 2, pch = 20)
+```
+
+###h.
+
+From the plot, the tree with node 9 or 7.
+
+###i. pruning
+
+```{r}
+prune.oj <- prune.misclass(tree.oj, best = 7)
+plot(prune.oj)
+text(prune.oj, pretty = 0)
+```
+
+###j. comparing
+
+```{r}
+summary(tree.oj)
+```
+
+```{r}
+summary(prune.oj)
+```
+
+###k. comparing error rate
+
+```{r}
+prune.pred <- predict(prune.oj, OJ.test, type = "class")
+table(prune.pred, OJ.test$Purchase)
+```
+
+```{r}
+(30+19)/(148+30+19+73)
+```
+
+they are the same..?
+which makes sense, since the pruning did not really prune.
+
+##Q10
+
+###a. removing NAs
+
+```{r}
+Hitters <- na.omit(Hitters)
+Hitters$Salary <- log(Hitters$Salary)
+```
+
+###b. splitting
+
+```{r}
+train <- 1:200
+Hitters.train <- Hitters[train, ]
+Hitters.test <- Hitters[-train, ]
+```
+
+###c. boosting
+
+```{r}
+set.seed(104)
+pows <- seq(-10, -0.2, by = 0.1)
+lambdas <- 10^pows
+train.err <- rep(NA, length(lambdas))
+for (i in 1:length(lambdas)) {
+    boost.hitters <- gbm(Salary ~ ., data = Hitters.train, distribution = "gaussian", n.trees = 1000, shrinkage = lambdas[i])
+    pred.train <- predict(boost.hitters, Hitters.train, n.trees = 1000)
+    train.err[i] <- mean((pred.train - Hitters.train$Salary)^2)
+}
+plot(lambdas, train.err, type = "b", xlab = "Shrinkage values", ylab = "Training MSE")
+```
+
+(boosting takes a bit longer time)
+
+###d. on test
+
+```{r}
+set.seed(104)
+test.err <- rep(NA, length(lambdas))
+for (i in 1:length(lambdas)) {
+    boost.hitters <- gbm(Salary ~ ., data = Hitters.train, distribution = "gaussian", n.trees = 1000, shrinkage = lambdas[i])
+    yhat <- predict(boost.hitters, Hitters.test, n.trees = 1000)
+    test.err[i] <- mean((yhat - Hitters.test$Salary)^2)
+}
+plot(lambdas, test.err, type = "b", xlab = "Shrinkage values", ylab = "Test MSE")
+```
+
+```{r}
+min(test.err)
+lambdas[which.min(test.err)]
+```
+
+the minimum test error is 0.256, when lambda equals 0.063
+
+###e. compare with ridge and lasso
+
+```{r}
+x <- model.matrix(Salary ~ ., data = Hitters.train)
+x.test <- model.matrix(Salary ~ ., data = Hitters.test)
+y <- Hitters.train$Salary
+fit1 <- glmnet(x, y, alpha = 0)
+pred1 <- predict(fit1, s = 0.01, newx = x.test)
+mean((pred1 - Hitters.test$Salary)^2)
+```
+
+```{r}
+fit2 <- glmnet(x, y, alpha = 1)
+pred2 <- predict(fit2, s = 0.01, newx = x.test)
+mean((pred2 - Hitters.test$Salary)^2)
+```
+
+ridge regression gives 0.457, while lasso gives 0.47. Both are bigger than that of boosting.
+
+###f. importance
+
+```{r}
+boost.hitters <- gbm(Salary ~ ., data = Hitters.train, distribution = "gaussian", n.trees = 1000, shrinkage = lambdas[which.min(test.err)])
+summary(boost.hitters)
+```
+
+CAtBat is the most important one.
+
+###g. bagging
+
+```{r}
+set.seed(104)
+bag.hitters <- randomForest(Salary ~ ., data = Hitters.train, mtry = 19, ntree = 500)
+yhat.bag <- predict(bag.hitters, newdata = Hitters.test)
+mean((yhat.bag - Hitters.test$Salary)^2)
+```
+
+Bagging decreases the error.
+
+##Q11
+
+###a. splitting
+
+```{r}
+set.seed(105)
+train <- 1:1000
+Caravan$Purchase <- ifelse(Caravan$Purchase == "Yes", 1, 0)
+Caravan.train <- Caravan[train, ]
+Caravan.test <- Caravan[-train, ]
+```
+
+###b. boosting
+
+```{r}
+set.seed(105)
+boost.caravan <- gbm(Purchase ~ ., data = Caravan.train, distribution = "gaussian", n.trees = 1000, shrinkage = 0.01)
+summary(boost.caravan)
+```
+
+```{r}
+head(summary(boost.caravan))
+```
+
+PRERSAUT is the most important one.
+
+###c. prediction
+
+```{r}
+probs.test <- predict(boost.caravan, Caravan.test, n.trees = 1000, type = "response")
+pred.test <- ifelse(probs.test > 0.2, 1, 0)
+table(Caravan.test$Purchase, pred.test)
+```
+
+```{r}
+10/(10+38)
+```
+
+the fraction of people predicted to make a purchase that in fact make one is 0.208.
+
+```{r}
+logit.caravan <- glm(Purchase ~ ., data = Caravan.train, family = "binomial")
+probs.test2 <- predict(logit.caravan, Caravan.test, type = "response")
+pred.test2 <- ifelse(probs.test > 0.2, 1, 0)
+table(Caravan.test$Purchase, pred.test2)
+```
+
+which is the same compared to logistic.
