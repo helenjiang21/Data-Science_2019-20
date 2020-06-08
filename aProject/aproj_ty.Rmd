@@ -1,0 +1,283 @@
+---
+title: "apron_ty"
+output: 
+  html_document:
+    keep_md: TRUE
+    toc: TRUE
+    toc_float: TRUE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggplot2)
+library(recommenderlab)
+library(data.table)
+library(lubridate)
+library(reshape2)
+library(dplyr)
+```
+
+## Import
+
+Here I use dataset from https://www.kaggle.com/azathoth42/myanimelist 
+It contains: basic information of 6668 anime (overall rating, number of episodes, airing year, genres, etc), information of 108711 users, and the rating they gave for each anime they???ve watched or watching.
+
+```{r}
+anime <- read.csv("clean/anime_cleaned.csv")
+lists <- read.csv("clean/animelists_cleaned.csv")
+```
+
+I only select the variables useful for making the recommendation system, excluding info. related to the content of animes and variables lacked documentation or uniform formats. 
+Some animes that do not have ratings or minutes (i.e. not actually an anime) are excluded as well.
+
+```{r}
+Anime <- anime %>%
+  select("anime_id":"title", "type":"status", "rating":"popularity", "favorites", "studio", "genre", "duration_min":"aired_from_year") %>%
+  filter(duration_min != 0)  %>%
+  filter("scored_by" != 0)
+```
+
+```{r}
+Lists <- lists %>%
+  select("username", "anime_id", "my_score") %>%
+  filter("my_score" != 0)
+```
+
+## Exploration
+
+Overall distribution of ratings.
+
+```{r}
+ggplot(Anime) +
+  geom_histogram(aes(score))
+```
+
+What are the animes with highest score? When someone is completely new to anime they can perhaps try these. 
+
+```{r}
+head(arrange(Anime, score))
+```
+Seasonal animes (less than 26 episodes) and highest rating.
+
+```{r}
+head(Anime %>%
+	filter(episodes < 26&episodes >0) %>%
+	arrange(score))
+```
+
+This part does not have so much connection with building the recommendation system but I???m interested???
+People always say that light novels??? adoption is the worst. But here it shows not really. 
+
+```{r}
+ggplot(Anime) +
+  geom_boxplot(aes(type, score))
+ggplot(Anime) +
+  geom_boxplot(aes(rating, score))
+ggplot(Anime) +
+  geom_boxplot(aes(source, score))
+```
+
+## Some Preprocessing
+
+Split the genre column in Anime into a data frame (where 1 means an anime belongs to this genre and 0 means it does not)
+
+```{r}
+genres <- as.data.frame(Anime$genre, stringsAsFactors=FALSE)
+genres2 <- as.data.frame(tstrsplit(genres[,1], '[,]', 
+                                   type.convert=TRUE), 
+                         stringsAsFactors=FALSE)
+colnames(genres2) <- c(1:13)
+```
+
+```{r}
+genre_list <- c("Action", "Adventure", "Cars", "Comedy", "Dementia","Demons", "Drama", "Ecchi", "Fantasy","Game", "Harem", "Hentai", "Historical","Horror", "Josei", "Kids", "Magic", "Martial Arts", "Mecha", "Military", "Music", "Mystery", "Parody", "Police", "Psychological", "Romance", "Samurai", "School", "Sci-Fi", "Seinen", "Shoujo", "Shoujo Ai", "Slice of Life", "Space", "Sports", "Super Power", "Supernatural", "Thriller", "Vampire", "Yaoi", "Yuri")
+```
+
+```{r}
+genre_matrix <- matrix(0,6622,41)
+genre_matrix[1,] <- genre_list 
+colnames(genre_matrix) <- genre_list 
+for (i in 1:nrow(genres2)) {
+  for (c in 1:ncol(genres2)) {
+    genmat_col = which(genre_matrix[1,] == genres2[i,c])
+    genre_matrix[i+1, genmat_col] <- 1
+  }
+}
+```
+
+```{r}
+genre_matrix2 <- as.data.frame(genre_matrix[-1,], stringsAsFactors=FALSE)
+for (c in 1:ncol(genre_matrix2)) {
+  genre_matrix2[,c] <- as.integer(genre_matrix2[,c])
+} 
+```
+Rejoin this with the anime data frame.
+
+```{r}
+anime_index <- cbind(Anime, genre_matrix2)
+```
+
+## User based collaborative filtering
+
+Basic idea of UBCF:
+1. Creating a matrix that has username as rows and anime_id as columns, and ratings as entries.
+2. Some transformation to reduce the magnitude of the matrix/normalization
+3. For each user, find users who have ???similar taste??? to him/her, then use their rating to recommend animes to him/her.
+I will use a package called recommenderlab to do this.
+
+First of all, transform the data frame to a matrix for recommender lab to work.
+
+```{r}
+ratingmat <- dcast(Lists, username~anime_id, value.var = "my_score", na.rm=FALSE)
+ratingmat <- as.matrix(ratingmat[,-1])
+ratingmat <- as(ratingmat, "realRatingMatrix")
+```
+
+### Some visualization
+
+Similarity between users:
+
+```{r}
+similarity_users <- similarity(ratingmat[1:4, ], 
+                               method = "cosine", 
+                               which = "users")
+similarity_users <- as.matrix(similarity_users)
+image(as.matrix(similarity_users), main = "User similarity")
+```
+
+*```{r}
+*image(ratingmat, main = "Heatmap of the rating matrix") # too many
+*```
+
+### Pre-process
+
+Here I select users who have watched enough animes to make recommendation (and animes with enough ratings, intended to use for item-based collaborative filtering)
+
+```{r}
+ratingmat2 <- ratingmat[rowCounts(ratingmat) > 15, colCounts(ratingmat) > 100]
+```
+
+#### Normalization
+
+Some users might incline to leave higher or lower ratings for all the anime he/she watched. So here I normalize everyone???s rating so each one???s ratings have the mean 0 and sd of 1.
+
+```{r}
+ratingmat3 <- normalize(ratingmat2)
+sum(rowMeans(ratingmat3) > 0.1)
+```
+Only one user???s mean is bigger than 0.1, so I will say the normalization works.
+
+#### Binarization
+
+Because the MAL has ratings from 1 to 10, and the matrix is quite large (6000*9000), so binarization can reduce its size for making models.
+
+```{r}
+ratingmat4 <- binarize(ratingmat3, minRating = 0)
+```
+This set is just to make sure again each person have enough positive values for making the model.
+
+```{r}
+ratingmat5 <- ratingmat4[rowSums(ratingmat4) > 6,]
+```
+
+#### Splitting
+
+I put 80% of each person???s data into the train set and others into the test set. If they do not have enough entries, at least five values are put into the test set.
+
+```{r}
+eval_sets = evaluationScheme(data = ratingmat5, method = "split", train = 0.8, given = -5)
+```
+
+```{r}
+eval_sets1 = evaluationScheme(data = ratingmat5[1:10000,], method = "split", train = 0.8, given = -5)
+```
+
+### Building Rec 
+
+```{r}
+user_recommender = Recommender(data = getData(eval_sets, "train"),
+                               method = "UBCF", parameter = NULL)
+```
+
+```{r}
+getModel(user_recommender)
+```
+Use it to make prediction:
+
+```{r}
+user_prediction = predict(object = user_recommender,
+                          newdata = getData(eval_sets, "known"),
+                          n = 1,
+                          type = "ratings")
+```
+
+Calculate its accuracy:
+
+```{r}
+user_pred <- getTopNLists(x = user_prediction, n=5)
+```
+
+```{r}
+user_accuracy = calcPredictionAccuracy(x = user_pred, given = 5,
+                                       data = getData(eval_sets, "unknown"), byUser=T)
+user_accuracy
+```
+
+## Item Based Collaborative Filtering 
+
+IBCF's idea is basically the same as UBCF, but takes much much longer time...
+```{r}
+# item_recommender = Recommender(data = getData(eval_sets1, "train"),
+#                                method = "IBCF", parameter = NULL)
+```
+
+```{r}
+# getModel(item_recommender)
+```
+Use it to make prediction:
+
+```{r}
+# item_prediction = predict(object = item_recommender,
+#                          newdata = getData(eval_sets1, "known"),
+#                          n = 1,
+#                          type = "ratings")
+```
+
+Calculate its accuracy:
+
+```{r}
+# item_pred <- getTopNLists(x = item_prediction, n = 200)
+```
+
+```{r}
+# item_accuracy = calcPredictionAccuracy(x = user_pred, given = 200,
+#                                        data = getData(eval_sets1, "unknown"), byUser=T)
+# item_accuracy
+```
+
+## Comparison with models with other parameters
+
+```{r}
+models_to_evaluate = list(UBCF_cos = list(name = "UBCF", param = list(method = "cosine")),
+                          UBCF_cor = list(name = "UBCF", param = list(method = "pearson")),
+                          random = list(name = "RANDOM", param=NULL))
+n_recommendations = c(1, 3, 5, 10)
+results = evaluate(x = eval_sets1, method = models_to_evaluate, n = n_recommendations)
+```
+
+```{r}
+plot(results, y = "ROC", annotate = 1, legend="topleft")
+title("ROC Curve")
+```
+
+```{r}
+plot(results, y = "prec/rec", annotate=1)
+title("Precision-Recall")
+```
+
+## Item rec based on Anime/user info
+
+The idea is to do clustering on animes based on their genre, studio, airing year. Then recommend animes in the same cluster to the user.
+
+There is a data frame contains the age, gender, etc., of the user. This info may be useful for recommendation.

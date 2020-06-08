@@ -1,0 +1,342 @@
+---
+title: "aproj"
+output: 
+  html_document:
+    keep_md: TRUE
+    toc: TRUE
+    toc_float: TRUE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggplot2)
+library(recommenderlab)
+library(data.table)
+library(lubridate)
+library(reshape2)
+library(dplyr)
+```
+
+## Import
+
+```{r}
+anime <- read.csv("clean/anime_cleaned.csv")
+user <- read.csv("clean/users_cleaned.csv")
+lists <- read.csv("clean/animelists_cleaned.csv")
+```
+
+I only select the variables useful for making the recommendation system, excluding info. related to the content of animes and variables lacked documentation or uniform formats. 
+
+```{r}
+Anime <- anime %>%
+  select("anime_id":"title", "type":"status", "rating":"popularity", "favorites", "producer", "studio", "genre", "duration_min":"aired_from_year") %>%
+  filter(duration_min != 0)  %>%
+  filter("scored_by" != 0)
+```
+
+```{r}
+Users <- user %>%
+  select("username", "user_id", "user_days_spent_watching":"gender", "birth_date", "stats_mean_score", "stats_episodes") %>%
+  mutate("birth_date" = year(as_date(ymd_hms(as.character.Date(birth_date)))))
+```
+
+```{r}
+Lists <- lists %>%
+  select("username", "anime_id", "my_score") %>%
+  filter("my_score" != 0)
+```
+
+
+## Exploration
+
+```{r}
+head(arrange(Anime, score))
+```
+
+```{r}
+ggplot(Anime) +
+  geom_histogram(aes(score))
+```
+
+```{r}
+ggplot(Anime) +
+  geom_boxplot(aes(type, score))
+ggplot(Anime) +
+  geom_boxplot(aes(rating, score))
+ggplot(Anime) +
+  geom_boxplot(aes(source, score))
+```
+
+## Some Preprocessing
+
+Split the genre column in Anime into a dataframe to later join with
+```{r}
+genres <- as.data.frame(Anime$genre, stringsAsFactors=FALSE)
+genres2 <- as.data.frame(tstrsplit(genres[,1], '[,]', 
+                                   type.convert=TRUE), 
+                         stringsAsFactors=FALSE)
+colnames(genres2) <- c(1:13)
+```
+
+```{r}
+genre_list <- c("Action", "Adventure", "Cars", "Comedy", "Dementia","Demons", "Drama", "Ecchi", "Fantasy","Game", "Harem", "Hentai", "Historical","Horror", "Josei", "Kids", "Magic", "Martial Arts", "Mecha", "Military", "Music", "Mystery", "Parody", "Police", "Psychological", "Romance", "Samurai", "School", "Sci-Fi", "Seinen", "Shoujo", "Shoujo Ai", "Slice of Life", "Space", "Sports", "Super Power", "Supernatural", "Thriller", "Vampire", "Yaoi", "Yuri")
+```
+
+```{r}
+genre_matrix <- matrix(0,6622,41)
+genre_matrix[1,] <- genre_list 
+colnames(genre_matrix) <- genre_list 
+for (i in 1:nrow(genres2)) {
+  for (c in 1:ncol(genres2)) {
+    genmat_col = which(genre_matrix[1,] == genres2[i,c])
+    genre_matrix[i+1, genmat_col] <- 1
+  }
+}
+```
+
+```{r}
+genre_matrix2 <- as.data.frame(genre_matrix[-1,], stringsAsFactors=FALSE)
+for (c in 1:ncol(genre_matrix2)) {
+  genre_matrix2[,c] <- as.integer(genre_matrix2[,c])
+} 
+```
+
+Do the same for producer
+
+```{r}
+producers <- as.data.frame(Anime$producer, stringsAsFactors=FALSE)
+producers2 <- as.data.frame(tstrsplit(producers[,1], '[,]', 
+                                   type.convert=TRUE), 
+                         stringsAsFactors=FALSE)
+colnames(producers2) <- c(1:13)
+producer_df <- distinct_at(producers2,"1")
+producer_list <- as.character(producer_df[,1])
+```
+
+```{r}
+producer_matrix <- matrix(0,6622,455)
+producer_matrix[1,] <- producer_list 
+colnames(producer_matrix) <- producer_list 
+for (i in 1:nrow(producers2)) {
+  for (c in 1:ncol(producers2)) {
+    promat_col = which(producer_matrix[1,] == producers2[i,c])
+    producer_matrix[i+1, promat_col] <- 1
+  }
+}
+
+producer_matrix2 <- as.data.frame(producer_matrix[-1,], stringsAsFactors=FALSE)
+for (c in 1:ncol(producer_matrix2)) {
+  producer_matrix2[,c] <- as.integer(producer_matrix2[,c])
+} 
+colnames(producer_matrix2) <- producer_list 
+```
+
+```{r}
+anime_index <- cbind(Anime, genre_matrix2) %>%
+  cbind(producer_matrix2)
+anime_index <- anime_index[,!(names(anime_index)) %in% c("producer", "genre")]
+```
+
+## User based collaborative filtering
+
+### Hot matrix
+
+```{r}
+ratingmat <- dcast(Lists, username~anime_id, value.var = "my_score", na.rm=FALSE)
+ratingmat <- as.matrix(ratingmat[,-1])
+ratingmat <- as(ratingmat, "realRatingMatrix")
+```
+
+Similarity between users:
+
+```{r}
+similarity_users <- similarity(ratingmat[1:4, ], 
+                               method = "cosine", 
+                               which = "users")
+similarity_users <- as.matrix(similarity_users)
+image(as.matrix(similarity_users), main = "User similarity")
+```
+
+*```{r}
+*image(ratingmat, main = "Heatmap of the rating matrix") # hard to read-too many *dimensions
+*```
+
+```{r}
+image(ratingmat[1:10, 1:15], main = "Heatmap of the first rows and columns")
+image(ratingmat[rowCounts(ratingmat) > quantile(rowCounts(ratingmat), 0.99),
+                 colCounts(ratingmat) > quantile(colCounts(ratingmat), 0.99)], 
+      main = "Heatmap of the top users and animes")
+```
+
+### Pre-process
+
+```{r}
+ratingmat2 <- ratingmat[rowCounts(ratingmat) > 15, colCounts(ratingmat) > 100]
+```
+
+Normalized the ratings of each user
+```{r}
+ratingmat3 <- normalize(ratingmat2)
+sum(rowMeans(ratingmat3) > 0.1)
+```
+
+Binarize
+```{r}
+ratingmat4 <- binarize(ratingmat3, minRating = 0)
+```
+
+```{r}
+ratingmat5 <- ratingmat4[rowSums(ratingmat4) > 6,]
+```
+
+Splitting into train and test sets
+```{r}
+eval_sets = evaluationScheme(data = ratingmat5, method = "split",
+                             train = 0.8, given = -5)
+```
+
+### Building Rec
+
+```{r}
+user_recommender = Recommender(data = getData(eval_sets, "train"),
+                               method = "UBCF", parameter = NULL)
+```
+
+```{r}
+getModel(user_recommender)
+```
+
+```{r}
+user_prediction = predict(object = user_recommender,
+                          newdata = getData(eval_sets, "known"),
+                          n = 5,
+                          type = "ratings")
+```
+
+```{r}
+user_accuracy = calcPredictionAccuracy(x = user_prediction,
+                                       data = getData(eval_sets, "unknown"),
+                                       byUser = TRUE)
+head(user_accuracy)
+```
+
+## Item based collaborative filtering
+
+Similarity between animes:
+
+```{r}
+similarity_items <- as.matrix(similarity(ratingmat[, 1:4], method =
+                                 "cosine", which = "items"))
+image(as.matrix(similarity_items), main = "Movies similarity")
+```
+
+### Heat matrix
+
+```{r}
+# image(ratingmat, main = "Heatmap of the rating matrix") # too many
+image(ratingmat[1:20, 1:25], main = "Heatmap of the first 20 rows and 25 columns")
+image(ratingmat5[1:20, 1:25], main = "Heatmap of the first 20 rows and 25 columns")
+```
+
+### Building Rec
+
+```{r}
+# item_recommender = Recommender(data = getData(eval_sets, "train"),
+#                                method = "IBCF", parameter = NULL)
+```
+
+```{r}
+# getModel(item_recommender)
+```
+
+```{r}
+# item_prediction = predict(object = item_recommender,
+#                          newdata = getData(eval_sets, "known"),
+#                          n = 5,
+#                          type = "ratings")
+```
+
+```{r}
+#item_accuracy = calcPredictionAccuracy(x = item_prediction,
+#                                       data = getData(eval_sets, "unknown"),
+#                                       byUser = TRUE)
+#head(item_accuracy)
+```
+
+## Comparison
+
+```{r}
+models_to_evaluate = list(UBCF_cos = list(name = "UBCF", param = list(method = "cosine")),
+                          UBCF_cor = list(name = "UBCF", param = list(method = "pearson")),
+                          random = list(name = "RANDOM", param=NULL))
+
+n_recommendations = c(1, 3, 5, 10, 15)
+results = evaluate(x = eval_sets, method = models_to_evaluate, n = n_recommendations)
+```
+
+```{r}
+plot(results, y = "ROC", annotate = 1, legend="topleft")
+title("ROC Curve")
+```
+
+```{r}
+plot(results, y = "prec/rec", annotate=1)
+title("Precision-Recall")
+```
+
+
+## Item rec based on Anime info
+
+```{r}
+set.seed(16)
+in_train <- sample(dim(anime_index)[1], dim(anime_index)[1] * 0.8)
+train_ani <- anime_index[in_train, ]
+test_ani <- anime_index[-in_train, ]
+```
+
+### PCA
+
+```{r}
+pca_ani <- prcomp(train_ani, scale = TRUE)
+```
+
+```{r}
+pve=100*pca_ani$sdev^2/sum(pca_ani$sdev^2)
+par(mfrow=c(1,2))
+plot(pve, type="o", ylab="PVE", xlab="Principal Component",
+col =" blue ")
+plot(cumsum(pve), type="o", ylab="Cumulative PVE", xlab="
+Principal Component ", col =" brown3 ")
+```
+
+```{r}
+comp <- data.frame(pca_ani$x[,1:4])
+plot(comp, pch=16, col=rgb(0,0,0,0.5))
+```
+
+### kmeans
+
+number of clusters
+```{r}
+wss <- (nrow(mydata)-1)*sum(apply(mydata,2,var))
+```
+
+```{r}
+for (i in 2:15){wss[i] <- sum(kmeans(mydata,
+   centers=i)$withinss)
+}
+```
+
+```{r}
+plot(1:15, wss, type="b", xlab="Number of Clusters", ylab="Within groups sum of squares")
+```
+
+```{r}
+k <- kmeans(comp, 4, nstart=25, iter.max=1000)
+```
+
+```{r}
+anime_f <- cbind(Anime, k$clusters)
+```
+
