@@ -1,0 +1,167 @@
+---
+title: "ulTest"
+output: 
+  html_document:
+    keep_md: TRUE
+    toc: TRUE
+    toc_float: TRUE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readr)
+library(caret)
+library(tidyr)
+library(ggplot2)
+library(dbscan)
+```
+
+## MNIST Data Overview
+
+I got the Fashion-MNIST data from Kaggle (https://www.kaggle.com/zalando-research/fashionmnist), where it has 60,000 training images and 10,000 testing images, each has 28*28=784 pixels that has a grayscale pixel-value of 0-255. 
+Each row describes an image; the first column is the label.
+We want to do some clustering plus predictive analysis
+
+### Loading
+
+```{r}
+Train <- read.csv("fashion-mnist_train.csv")
+Test <- read.csv("fashion-mnist_test.csv")
+train <- Train[,-1]
+test <- Test[,-1]
+```
+
+Dropping the first column is to remove the label.
+
+## Preprocessing
+
+### Scaling
+
+```{r}
+train <- train / 255
+test <- test / 255
+```
+
+### Near Zero Variance
+
+The pixels that are constantly white/blank won't help us much (e.g. the corners)
+
+*```{r}
+nzv <- nearZeroVar(train)
+train1 <- train[,-nzv]
+```
+
+*```{r}
+dim(train)
+dim(train1)
+```
+
+*226 left...which sounds a bit too few?
+
+```{r}
+nzvs <- nearZeroVar(train, uniqueCut = 1/4)
+train2 <- train[1:10,-nzvs]
+dim(train2)
+```
+
+which is more reasonable. 
+
+```{r}
+train1 <- train[, -nzvs]
+```
+
+## PCA
+
+Because the dimensionality of the data is still quite high, PCA can help to reduce it and improve interprebility.
+
+```{r}
+start.time <- Sys.time()
+train1_pc <- prcomp(train1)
+Sys.time() - start.time
+```
+
+```{r}
+pve <- train1_pc$sdev^2 / sum(train1_pc$sdev^2)
+cum <- cumsum(pve)
+
+plot(1:length(train1_pc$sdev), cum, type = "b", xlim = c(0, 50),
+     xlab = "Number of Components", ylab = "Variance Explained")
+plot(1:length(train1_pc$sdev), cum, type = "b", xlim = c(0, 100),
+     xlab = "Number of Components", ylab = "Variance Explained")
+plot(1:length(train1_pc$sdev), cum, type = "b", xlim = c(0, 300),
+     xlab = "Number of Components", ylab = "Variance Explained")
+plot(1:length(train1_pc$sdev), cum, type = "b", xlim = c(0, 500),
+     xlab = "Number of Components", ylab = "Variance Explained")
+```
+
+The first two components can only explain less than 50% variance; it approximately reaches 0.8 at 30 and 0.9 at 120.
+So using PCA here is not that useful; the dimension is still not low enought (2~3) for clustering.
+
+## K-means
+
+Since there are 10 categories, let's set centers to 10.
+
+```{r}
+start.time <- Sys.time()
+train1_km <- kmeans(train1, centers = 10, nstart = 30, iter.max = 100)
+Sys.time() - start.time
+```
+
+```{r}
+tb1 <- table(pred = train1_km$cluster, actual = Train$label)
+tb1
+```
+
+## Hierarchical
+
+My intuition tells me that centroid should takes the least time... but still let's see which method is the best.
+
+(the entire training data takes way too long so I subset 1000 to try first)
+
+```{r}
+train1_d <- dist(train1[1:10000,])
+```
+
+
+```{r}
+train1_hc1 <- hclust(train1_d, method = "centroid")
+```
+
+```{r}
+train1_hc2 <- hclust(train1_d, method = "complete")
+```
+
+```{r}
+train1_hc3 <- hclust(train1_d, method = "average")
+```
+
+```{r}
+train1_hc4 <- hclust(train1_d, method = "single")
+```
+
+```{r}
+table(cutree(train1_hc1, 10), Train[1:10000,]$label)
+table(cutree(train1_hc2, 10), Train[1:10000,]$label)
+table(cutree(train1_hc3, 10), Train[1:10000,]$label)
+table(cutree(train1_hc4, 10), Train[1:10000,]$label)
+```
+
+This is so bad....
+
+## DBSCAN
+
+```{r}
+train1_ <- as.matrix(train1)
+kNNdistplot(train1_, k = 10)
+abline(h=.5, col = "red", lty=2)
+```
+
+
+```{r}
+train1_db <- dbscan(train1, eps = 4, minPts = 10)
+```
+
+```{r}
+plot(train1, col=train1_db$cluster)
+```
+
